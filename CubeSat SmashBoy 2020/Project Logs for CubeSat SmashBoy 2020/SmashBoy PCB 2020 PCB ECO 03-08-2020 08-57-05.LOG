@@ -1,0 +1,15 @@
+Added Pin To Net: NetName=GND Pin=-1
+Added Pin To Net: NetName=GND Pin=-2
+Added Pin To Net: NetName=GND Pin=-39
+Added Pin To Net: NetName=GND Pin=-40
+Added Pin To Net: NetName=GND Pin=-41
+Added Pin To Net: NetName=GND Pin=-42
+Added Pin To Net: NetName=GND Pin=-79
+Added Pin To Net: NetName=GND Pin=-80
+Added Pin To Net: NetName=GND Pin=-81
+Added Pin To Net: NetName=GND Pin=-82
+Added Pin To Net: NetName=GND Pin=-119
+Added Pin To Net: NetName=GND Pin=-120
+Added Net: Name=GND
+Added Member To Class: ClassName=SmashBoy schematic 2020 Member=Component  1375799-1
+Added Room: Name=SmashBoy schematic 2020
