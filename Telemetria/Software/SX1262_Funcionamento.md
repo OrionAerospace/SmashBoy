@@ -16,8 +16,12 @@ A seção 14 do datasheet explica a sequência de funcionamento para uma transmi
 
 SetStandby, coloca o CI em Standby e define qual o oscilador interno será utilizado durante este modo (RC ou XTAL), a mensagem que será transmitida deve primeiramente verificar se o pino BUSY está em LOW, caso esteja em HIGH aguarde passar para LOW, em seguida o pino SPI NSS deve ir para LOW para o SX1262 receber o comando, depois deve enviar o OpCode correspondente a SetStandby (no caso, 0x80) e o próximo byte correspondente ao oscilador utilizado (StdbyConfig), neste caso pode ser (0x00 ou 0x01), a mensagem completa enviada via SPI será então **0x80 0x00** ou **0x80 0x01**.
 
-Read/WriteRegister e Read/WriteBuffer, também possuem OpCodes, endereços e offsets que devem ser enviados antes do valor a ser lido ou inserido nos registradores, exemplo WriteRegister:  
-> BUSY == LOW
-> NSS = LOW
-> SPI_WRITE = **0x0D 0x07 0x40 0x34 0x44**
-> NSS = HIGH
+Read/WriteRegister e Read/WriteBuffer, também possuem OpCodes, endereços e offsets que devem ser enviados antes do valor a ser lido ou inserido nos registradores, exemplo WriteRegister:
+
+ > BUSY == LOW
+ 
+ > NSS = LOW
+ 
+ > SPI_WRITE = **0x0D 0x07 0x40 0x34 0x44**
+ 
+ > NSS = HIGH
