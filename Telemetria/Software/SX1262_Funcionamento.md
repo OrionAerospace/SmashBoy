@@ -25,3 +25,5 @@ Read/WriteRegister e Read/WriteBuffer, também possuem OpCodes, endereços e off
  > SPI_WRITE = **0x0D 0x07 0x40 0x34 0x44**
  
  > NSS = HIGH
+ 
+ No caso da mensagem acima, foi atribuido no registrador 0x0740 o valor 0x34 e no 0x0741 o valor 0x44, a cada novo byte o endereço seguinte é automaticamente definido.
