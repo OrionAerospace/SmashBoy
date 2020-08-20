@@ -28,4 +28,4 @@ Read/WriteRegister e Read/WriteBuffer, também possuem OpCodes, endereços e off
  
  No caso da mensagem acima, foi atribuido no registrador 0x0740 o valor 0x34 e no 0x0741 o valor 0x44, a cada novo byte o endereço seguinte é automaticamente definido.
  
- **Além de aguardar o pino BUSY, é necessário aguardar um breve periodo de tempo para enviar o próximo comando, este tempo é especificado no datasheet**
+ **Além de aguardar o pino BUSY, é necessário tbm aguardar um breve periodo de tempo para enviar o próximo comando, este tempo é especificado no datasheet**
