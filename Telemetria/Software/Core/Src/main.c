@@ -739,10 +739,19 @@ void vTaskTransmitter( void * pvParameters )
 		// criar uma maneira de tratar a falha ou identificar o problema
 	}
 
+	/* Libera Task de triagem, já que sabemos agora que o rádio está operacional*/
+	vTaskResume(triagemTaskHandle);
+
 	//-----------------------------------------------------------------------------------------------------------------
 
 	/* Ponteiro para receber os Feedbacks das Tasks */
 	feedback *pRxFeedback;
+
+	/* Array de ponteiro que armazena todos os endereços dos feedbacks */
+	feedback *pArrayFeedback[10];
+
+	/* Contado de feedbacks, indice para pArrayFeedback */
+	uint8_t index = 0;
 
 	/* -=-=-=-=-=-=-=-=- LOOP RADIO -=-=-=-=-=-=-=-=- */
 
@@ -762,15 +771,12 @@ void vTaskTransmitter( void * pvParameters )
 				/* Verifica se alguma Task enviou ponteiro de feedback */
 				if( xQueueReceive(xQueueRadio, &(pRxFeedback), ( TickType_t ) 0) == pdPASS )			// ###############  CONTINUAR DAQUI #################### 03/09/2020
 				{
-					// esse if não ta servindo pra nada kkk
-
-					/* Seguinte, precisa criar um negocio pra armazenar o ponteiro de tdos os feedbacks que chegaram, isso vai ser feito aqui
-					 *
-					 * No caso, como atualmente só tem a task deploy, então essa lógica ta funcionando, mas qnd tiver mais feedbacks, aí vai ter q tratar */
+					/* Os ponteiros de feedback são carregados aqui */
+					pArrayFeedback[index++] = pRxFeedback;
 				}
 
 				/* Mensagem que será enviada */
-				sprintf(payload, "TESTE %d - Deploy: %c\n", contador, (char) (0x30 + (pRxFeedback->parameter[0]) ) );
+				sprintf(payload, "TESTE %d - Deploy: %c\n", contador, (char) (0x30 + (pArrayFeedback[0]->parameter[0]) ) );
 
 				SX_SetStandby(0x00);
 
@@ -908,6 +914,8 @@ void TriagemTask(void const * argument)
 	uint8_t status = 0, PayloadLengthRx = 0, RxStartBufferPointer = 0;
 	uint8_t *payload = 0;		// Ponteiro para o pacote recebido após cara RxDone
 
+	/* Suspende a esta Task momentaneamente. Caso o rádio não enteja conectado, o primeiro if nunca ocorreria */
+	vTaskSuspend(triagemTaskHandle);
 
   /* Infinite loop */
 	for(;;)
