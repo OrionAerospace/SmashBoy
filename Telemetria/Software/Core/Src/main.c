@@ -565,7 +565,7 @@ typedef struct
 
 
 /* Enum para tornar o codigo mais legivel */
-enum status_deploy { folded, deploying, not_deployed, fully_deployed } status_dpl;
+enum status_deploy { folded = 0x30, deploying, not_deployed, fully_deployed } status_dpl;
 
 /* Variavel do feedback do status do deploy, precisou ser global pq usa na interrupção */
 feedback deploy;
@@ -719,8 +719,8 @@ void vTaskTransmitter( void * pvParameters )
 		/* Setup do rádio */		//  #### Para ficar mais intuitivo, utilizar #defines    ####
 		SX_SetPacketType(0x01);
 		SX_SetFrequency(915e6);
-		SX_SetPaConfig(0x02, 0x02, 0x00);	// Afeta a potencia de saida
-		SX_SetTxParam(14, 0x03);			// Afeta a potencia de saida
+		SX_SetPaConfig(0x04, 0x07, 0x00);	// Afeta a potencia de saida
+		SX_SetTxParam(10, 0x03);			// Afeta a potencia de saida
 		SX_SetBufferBaseAddress(0x7F, 0x00);
 		SX_SetModulationParamsLoRa(0x07, 0x04, 0x01, 0x00);
 		SX_WriteRegister(0x0740, LoRaSyncWord, 2);
@@ -769,14 +769,25 @@ void vTaskTransmitter( void * pvParameters )
 			if( xSemaphoreTake( xMutexSpiRadio, ( TickType_t ) 50 ) == pdTRUE )
 			{
 				/* Verifica se alguma Task enviou ponteiro de feedback */
-				if( xQueueReceive(xQueueRadio, &(pRxFeedback), ( TickType_t ) 0) == pdPASS )			// ###############  CONTINUAR DAQUI #################### 03/09/2020
+				while ( xQueueReceive(xQueueRadio, &(pRxFeedback), ( TickType_t ) 0) == pdPASS )
 				{
 					/* Os ponteiros de feedback são carregados aqui */
 					pArrayFeedback[index++] = pRxFeedback;
 				}
 
 				/* Mensagem que será enviada */
-				sprintf(payload, "TESTE %d - Deploy: %c\n", contador, (char) (0x30 + (pArrayFeedback[0]->parameter[0]) ) );
+//				sprintf(payload, "TESTE %d - Deploy: %c\n", contador, (char) (0x30 + (pArrayFeedback[0]->parameter[0]) ) );
+				sprintf(payload, "TEST %.3d|", contador);
+
+				for(int i = 0, j = 0; (i < sizeof(payload)-9) && (i < index*3); i = i + 3, j++)
+				{
+					payload[9+i] = pArrayFeedback[j]->ID_Task[0];
+					payload[10+i] = pArrayFeedback[j]->parameter[0];
+					payload[11+i] = '|';
+
+				}
+
+				payload[15] = '\n';
 
 				SX_SetStandby(0x00);
 
@@ -910,7 +921,7 @@ void TriagemTask(void const * argument)
 		configASSERT(0);
 	}
 
-	uint16_t periodo = 1000;	// Periodo entre cada ciclo Tx Rx
+	uint16_t periodo = 2000;	// Periodo entre cada ciclo Tx Rx
 	uint8_t status = 0, PayloadLengthRx = 0, RxStartBufferPointer = 0;
 	uint8_t *payload = 0;		// Ponteiro para o pacote recebido após cara RxDone
 
