@@ -1,3 +1,12 @@
+19/09/2020
+
+Transferencia de arquivos por SPI com CRC32 e cabeçalho foi implementada
+Falta ainda implementar a lógica com UART e o tratamento de erros
+
+O ARQUIVO DEVE SER COMPILADO COM PYTHON 3
+
+-------------------------------------
+
 16/09/2020
 
 Criada a pasta RPi, aqui estará todo o código para o Raspberry.
@@ -6,5 +15,4 @@ Em maio eu havia escrito um código em C, mas como a câmera funciona com um có
  significativa de desempenho se todo o algoritmo do raspberry for em Python. Além disso, em Python fica mais simples para ser lido
  pelas próximas pessoas que estarão fazendo parte da equipe.
 
-
-
+--------------------------------------
