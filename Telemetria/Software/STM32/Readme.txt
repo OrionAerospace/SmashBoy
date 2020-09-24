@@ -1,3 +1,7 @@
+SmashBoy - FreeRTOS - Funcionamento Superficial Software
+https://docs.google.com/spreadsheets/d/1H0UxWHC4-2a8tMSLyNS2wVXkgVRTFNAkbJkslC1BT0Q/edit#gid=0
+
+
 O fluxograma RTOS descreve a maneira como o sistema operacional do CubeSat irá se comportar, cada Task 
  pode ser compreendida como um conjunto de instruções que funciona em seu próprio loop de trabalho, 
  algumas tasks possuem dependências com outras.
