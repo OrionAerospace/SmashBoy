@@ -50,6 +50,8 @@ SPI_HandleTypeDef hspi3;
 
 TIM_HandleTypeDef htim5;
 
+UART_HandleTypeDef huart1;
+
 osThreadId triagemTaskHandle;
 /* USER CODE BEGIN PV */
 
@@ -64,6 +66,8 @@ SemaphoreHandle_t xSemBinRadio, xSemBinRX;
 
 QueueHandle_t xQueueRadio;
 
+TimerHandle_t xTimerTriagemWatchdog;
+
 
 /* USER CODE END PV */
 
@@ -74,6 +78,7 @@ static void MX_CRC_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_TIM5_Init(void);
 static void MX_SPI3_Init(void);
+static void MX_USART1_UART_Init(void);
 void TriagemTask(void const * argument);
 
 /* USER CODE BEGIN PFP */
@@ -83,6 +88,7 @@ void TriagemTask(void const * argument);
 void vTaskTransmitter( void * pvParameters );
 void vTaskDeploy( void * pvParameters );
 void vTaskImage( void * pvParameters );
+void vTimerCallback( TimerHandle_t xTimer );
 
 /* USER CODE END PFP */
 
@@ -123,6 +129,7 @@ int main(void)
   MX_SPI1_Init();
   MX_TIM5_Init();
   MX_SPI3_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
 
@@ -178,8 +185,8 @@ int main(void)
     /* Create the task, storing the handle. */
     xReturned = xTaskCreate(
                     vTaskImage,       		/* Function that implements the task. */
-                    "Transmitter",    		/* Text name for the task. */
-                    256,      				/* Stack size in words, not bytes. */
+                    "Image",    			/* Text name for the task. */
+                    550,      				/* Stack size in words, not bytes. */
                     ( void * ) 1,    		/* Parameter passed into the task. */
   				  ( ( UBaseType_t ) 3U ),	/* Priority at which the task is created. */
                     &xHandleImage );   /* Used to pass out the created task's handle. */
@@ -192,8 +199,30 @@ int main(void)
     }
 
 
+    xTimerTriagemWatchdog= xTimerCreate
+						   ( /* Just a text name, not used by the RTOS
+							 kernel. */
+							 "TimerTri",
+							 /* The timer period in ticks, must be
+							 greater than 0. */
+							 50000,
+							 /* The timers will auto-reload themselves
+							 when they expire. */
+							 pdFALSE,
+							 /* The ID is used to store a count of the
+							 number of times the timer has expired, which
+							 is initialised to 0. */
+							 ( void * ) 0,
+							 /* Each timer calls the same callback when
+							 it expires. */
+							 vTimerCallback
+						   );
 
-
+    if( xTimerTriagemWatchdog == NULL )
+	{
+	 /* The timer was not created. */
+    	configASSERT(0);
+	}
 
 
   /* USER CODE END 2 */
@@ -295,7 +324,8 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SPI3|RCC_PERIPHCLK_SPI1;
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_SPI3
+                              |RCC_PERIPHCLK_SPI1;
   PeriphClkInitStruct.PLL2.PLL2M = 25;
   PeriphClkInitStruct.PLL2.PLL2N = 320;
   PeriphClkInitStruct.PLL2.PLL2P = 2;
@@ -305,6 +335,7 @@ void SystemClock_Config(void)
   PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
   PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
   PeriphClkInitStruct.Spi123ClockSelection = RCC_SPI123CLKSOURCE_PLL2;
+  PeriphClkInitStruct.Usart16ClockSelection = RCC_USART16CLKSOURCE_D2PCLK2;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -483,6 +514,54 @@ static void MX_TIM5_Init(void)
 }
 
 /**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart1.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart1, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart1, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_DisableFifoMode(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -536,7 +615,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : SPI3_NSS_Pin */
   GPIO_InitStruct.Pin = SPI3_NSS_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(SPI3_NSS_GPIO_Port, &GPIO_InitStruct);
 
@@ -562,6 +641,9 @@ static void MX_GPIO_Init(void)
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI0_IRQn, 7, 0);
   HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 
   HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
@@ -590,7 +672,7 @@ typedef struct
 enum status_deploy { folded = 0x30, deploying, not_deployed, fully_deployed } status_dpl;
 
 /* Variavel do feedback do status do deploy, precisou ser global pq usa na interrupção */
-feedback deploy;
+feedback deploy, image;
 
 
 
@@ -621,9 +703,12 @@ void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin)
 			/* Desativa o amplificador de RF (TX) para poupar (MUITA) energia */
 			HAL_GPIO_WritePin(TXEN_GPIO_Port, TXEN_Pin, GPIO_PIN_RESET);
 
-			/* Este semaforo indica que a transmissão de dados finalizou, e agora o
-			 *   modo de recepção pode começar */
-			xSemaphoreGiveFromISR(xSemBinRadio, &xHigherPriorityTaskWoken);
+			if(image.parameter[0] != 0x31)
+			{
+				/* Este semaforo indica que a transmissão de dados finalizou, e agora o
+				 *   modo de recepção pode começar */
+				xSemaphoreGiveFromISR(xSemBinRadio, &xHigherPriorityTaskWoken);
+			}
 			break;
 
 		case DIO2_Pin:
@@ -772,7 +857,7 @@ void vTaskTransmitter( void * pvParameters )
 	/* Array de ponteiro que armazena todos os endereços dos feedbacks */
 	feedback *pArrayFeedback[10];
 
-	/* Contado de feedbacks, indice para pArrayFeedback */
+	/* Contador de feedbacks, indice para pArrayFeedback */
 	static uint8_t index = 0;
 
 	/* -=-=-=-=-=-=-=-=- LOOP RADIO -=-=-=-=-=-=-=-=- */
@@ -801,15 +886,16 @@ void vTaskTransmitter( void * pvParameters )
 //				sprintf(payload, "TESTE %d - Deploy: %c\n", contador, (char) (0x30 + (pArrayFeedback[0]->parameter[0]) ) );		//
 				sprintf(payload, "TEST %.3d|", contador);																		//  'pArrayFeedback' armazena todos estes ponteiros. 'index' é o indice de pArrayFeedback
 																																//    e tambem indica quantas variaveis de feedback existem.
-				for(int i = 0, j = 0; (i < sizeof(payload)-9) && (i < index*3); i = i + 3, j++)									//
+				for(int i = 0, j = 0; (i < sizeof(payload)-9) && (i < index*4); i = i + 4, j++)									//
 				{
 					payload[9+i] = pArrayFeedback[j]->ID_Task[0];
 					payload[10+i] = pArrayFeedback[j]->parameter[0];
-					payload[11+i] = '|';
+					payload[11+i] = pArrayFeedback[j]->parameter[1];
+					payload[12+i] = '|';
 
 				}
 
-				payload[15] = '\n';
+				payload[17] = '\n';
 
 				SX_SetStandby(0x00);
 
@@ -860,8 +946,8 @@ void vTaskDeploy( void * pvParameters )
 	/* Ponteiro para enviar o endereço da variavel 'deploy', do tipo feedback */
 	feedback *pDeploy = &deploy;
 
-	deploy.ID_Task[0] = 'D'; deploy.ID_Task[1] = 'P'; deploy.ID_Task[2] = 'L';
-	deploy.parameter[0] = folded; deploy.parameter[1] = 0;
+	deploy.ID_Task[0] = 'D'; 	deploy.ID_Task[1] = 'P'; 	deploy.ID_Task[2] = 'L';
+	deploy.parameter[0] = folded;	deploy.parameter[1] = 0;
 
 	if( xQueueSend(xQueueRadio, (void *) &pDeploy, ( TickType_t ) 100) != pdPASS)
 	{
@@ -891,18 +977,103 @@ void vTaskDeploy( void * pvParameters )
 	}
 }
 
+void HAL_SPI_RxCpltCallback (SPI_HandleTypeDef * hspi)
+{
+	image.parameter[0] = 0x31;
+
+	BaseType_t xYieldRequired;
+
+	 // Resume the suspended task.
+	 xYieldRequired = xTaskResumeFromISR( xHandleImage );
+
+	 if( xYieldRequired == pdTRUE )
+	 {
+		 // We should switch context so the ISR returns to a different task.
+		 // NOTE:  How this is done depends on the port you are using.  Check
+		 // the documentation and examples for your port.
+		 portYIELD_FROM_ISR(xYieldRequired);
+	 }
+}
+
+void vTimerCallback( TimerHandle_t xTimer )
+{
+	// Se der merda, o timer não será parado, então isso garante que volte pra um estado conhecido
+
+	image.parameter[0] = 0x30;
+	image.parameter[1] = 'F';
+	xSemaphoreGive(xSemBinRadio);
+	vTaskResume(triagemTaskHandle);
+}
 
 void vTaskImage( void * pvParameters )
 {
 
-	// Aqui vou ter que utilizar a porta UART para comunicar com o RPi, e a SPI3 para receber a imagem
+	/*	FUNCIONAMENTO DESTA TASK
 
+		1- O uC envia um sinal por UART para o RPi quando for solicitado pela task triagem
+		*- Antes de um arquivo ser efetivamente transmitidos, a ground station deve estar
+			ciente sobre os metadados do arquivo que ela vai receber
+		*- A task do transmissor deve continuar enviando os dados para a ground station,
+			de modo que esta task transmita o arquivo no restante do tempo
+		*- Esta task passa como feedback para a task do transmissor a pergunta se a GS
+			conseguiu compreender todos os dados
+	*/
 
-	/* Fica suspensa até o momento que for chamada */
-	vTaskSuspend(xHandleImage);
+	feedback *pImage = &image;
 
-	for(;;)
+	uint8_t msgRPiBegin[2] = {0xFF, 0xAA};
+	uint8_t msgRPiNext[2] = {0xFF, 0xCC};
+	uint8_t msgRPiRepeat[2] = {0xFF, 0x00};
+
+	uint8_t bufferSPI[2032];
+
+	image.ID_Task[0] = 'I'; 	image.ID_Task[1] = 'M'; 	image.ID_Task[2] = 'G';
+	image.parameter[0] = 0x30; 	image.parameter[1] = 0x30;
+
+	if( xQueueSend(xQueueRadio, (void *) &pImage, ( TickType_t ) 100) != pdPASS)
 	{
+		/* Não conseguiu colocar ponteiro na queue*/
+		configASSERT(0);
+	}
+
+//	SPI3->CR1 |= 0x1000;
+
+	for(;;)							// ########################### IMPLEMENTAR MAIS ETAPAS DE SEGURANÇA
+	{
+		/* Fica suspensa até o momento que for chamada */
+		vTaskSuspend(xHandleImage);
+
+		HAL_SPI_Receive_IT(&hspi3, bufferSPI, 2032);
+
+		while(image.parameter[0] != 0x31)
+		{
+			image.parameter[1] = 'W';
+			HAL_UART_Transmit(&huart1, msgRPiBegin, 2, HAL_MAX_DELAY);
+			vTaskSuspend(xHandleImage);
+		}
+
+		image.parameter[1] = 'T';
+
+		if( xTimerStart( xTimerTriagemWatchdog, 0 ) != pdPASS )			// ################ O TIMER TA BUGANDO O DEPLOY, deve ser falta de memoria
+			configASSERT(0);
+
+		vTaskSuspend(triagemTaskHandle);
+
+
+		for(int i = 0; i < 5; i++)
+		{
+			osDelay(5000);		// simula a transmissão
+			vTaskResume(xHandleTransmitter);	// beacon
+		}
+
+		image.parameter[0] = 0x30;
+		image.parameter[1] = 'S';
+		xSemaphoreGive(xSemBinRadio);
+		vTaskResume(triagemTaskHandle);
+
+		if( xTimerStop( xTimerTriagemWatchdog, 0 ) != pdPASS )
+			configASSERT(0);
+
 
 	}
 }
@@ -1007,6 +1178,8 @@ void TriagemTask(void const * argument)
 							case 0x50:
 								vTaskResume(xHandleDeploy);
 								break;
+							case 0x46:
+								vTaskResume(xHandleImage);
 							default:
 								break;
 						}
@@ -1030,6 +1203,7 @@ void TriagemTask(void const * argument)
 		{
 			// A interrupção TxDone falhou por algum motivo
 			configASSERT(0);
+
 			// criar uma maneira de informar que houve falha
 		}
 
