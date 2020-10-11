@@ -63,8 +63,12 @@ TaskHandle_t xHandleImage = NULL;
 
 SemaphoreHandle_t xMutexSpiRadio;
 SemaphoreHandle_t xSemBinRadio, xSemBinRX;
+SemaphoreHandle_t xSemBinRadioImage;
+SemaphoreHandle_t xSemBinImgUART;
+SemaphoreHandle_t xSemBinImgSPI;
 
-QueueHandle_t xQueueRadio;
+QueueHandle_t xQueueRadio = NULL;
+QueueHandle_t xQueueBlockFeedback = NULL;
 
 TimerHandle_t xTimerTriagemWatchdog;
 
@@ -121,6 +125,8 @@ int main(void)
 
   /* USER CODE BEGIN SysInit */
 
+  vTraceEnable(TRC_START);
+
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -143,7 +149,7 @@ int main(void)
   xReturned = xTaskCreate(
                   vTaskTransmitter,       	/* Function that implements the task. */
                   "Transmitter",    		/* Text name for the task. */
-                  256,      				/* Stack size in words, not bytes. */
+                  180,      				/* Stack size in words, not bytes. */
                   ( void * ) 1,    			/* Parameter passed into the task. */
 				  ( ( UBaseType_t ) 3U ),	/* Priority at which the task is created. */
                   &xHandleTransmitter );    /* Used to pass out the created task's handle. */
@@ -186,7 +192,7 @@ int main(void)
     xReturned = xTaskCreate(
                     vTaskImage,       		/* Function that implements the task. */
                     "Image",    			/* Text name for the task. */
-                    550,      				/* Stack size in words, not bytes. */
+                    1400,      				/* Stack size in words, not bytes. */
                     ( void * ) 1,    		/* Parameter passed into the task. */
   				  ( ( UBaseType_t ) 3U ),	/* Priority at which the task is created. */
                     &xHandleImage );   /* Used to pass out the created task's handle. */
@@ -703,12 +709,10 @@ void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin)
 			/* Desativa o amplificador de RF (TX) para poupar (MUITA) energia */
 			HAL_GPIO_WritePin(TXEN_GPIO_Port, TXEN_Pin, GPIO_PIN_RESET);
 
-			if(image.parameter[0] != 0x31)
-			{
-				/* Este semaforo indica que a transmissão de dados finalizou, e agora o
-				 *   modo de recepção pode começar */
-				xSemaphoreGiveFromISR(xSemBinRadio, &xHigherPriorityTaskWoken);
-			}
+			/* Este semaforo indica que a transmissão de dados finalizou, e agora o
+			 *   modo de recepção pode começar */
+			xSemaphoreGiveFromISR(xSemBinRadio, &xHigherPriorityTaskWoken);
+
 			break;
 
 		case DIO2_Pin:
@@ -900,10 +904,13 @@ void vTaskTransmitter( void * pvParameters )
 				SX_SetStandby(0x00);
 
 				/* Define os parametros do packet */
-				SX_SetPacketParamsLoRa(0x08, 0x00, sizeof(payload), 0x01, 0x00);
+//				SX_SetPacketParamsLoRa(0x08, 0x00, sizeof(payload), 0x01, 0x00);
+				SX_SetPacketParamsLoRa(0x08, 0x00, 18, 0x01, 0x00);
 
 				/* Configura interrupção TX Done */
 				SX_SetDioIrqParams(0x01, 0x01, 0, 0);
+
+				SX_SetBufferBaseAddress(0x7F, 0x00);				// ################################################## adicionei isso aq, se funcionar, mantenha
 
 				/* Escreve uma mensagem de teste no buffer */
 				SX_WriteBuffer(0x7F, (uint8_t *) payload, sizeof(payload));
@@ -979,30 +986,40 @@ void vTaskDeploy( void * pvParameters )
 
 void HAL_SPI_RxCpltCallback (SPI_HandleTypeDef * hspi)
 {
-	image.parameter[0] = 0x31;
+	static BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-	BaseType_t xYieldRequired;
+	// Informa que a mensagem do SPI está disponivel
+	xSemaphoreGiveFromISR(xSemBinImgSPI, &xHigherPriorityTaskWoken);
 
-	 // Resume the suspended task.
-	 xYieldRequired = xTaskResumeFromISR( xHandleImage );
+	// Força uma mudança de contexto caso seja necessario
+	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
 
-	 if( xYieldRequired == pdTRUE )
-	 {
-		 // We should switch context so the ISR returns to a different task.
-		 // NOTE:  How this is done depends on the port you are using.  Check
-		 // the documentation and examples for your port.
-		 portYIELD_FROM_ISR(xYieldRequired);
-	 }
+}
+
+void HAL_UART_RxCpltCallback (UART_HandleTypeDef * huart)
+{
+	// libera um semaforo binario
+	// isso precisa informar que recebeu um feedback
+
+	static BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+	xSemaphoreGiveFromISR(xSemBinImgUART, &xHigherPriorityTaskWoken);
+
+	// Força uma mudança de contexto caso seja necessario
+	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+
 }
 
 void vTimerCallback( TimerHandle_t xTimer )
 {
+	// ATUALIZAÇÃO, EU AINDA TENHO QUE ARRUMAR ISSO
+
 	// Se der merda, o timer não será parado, então isso garante que volte pra um estado conhecido
 
-	image.parameter[0] = 0x30;
-	image.parameter[1] = 'F';
-	xSemaphoreGive(xSemBinRadio);
-	vTaskResume(triagemTaskHandle);
+//	image.parameter[0] = 0x30;
+//	image.parameter[1] = 'F';
+//	xSemaphoreGive(xSemBinRadio);
+//	vTaskResume(triagemTaskHandle);
 }
 
 void vTaskImage( void * pvParameters )
@@ -1019,16 +1036,32 @@ void vTaskImage( void * pvParameters )
 			conseguiu compreender todos os dados
 	*/
 
+	TaskStatus_t xTaskDetails;
+
 	feedback *pImage = &image;
 
-	uint8_t msgRPiBegin[2] = {0xFF, 0xAA};
-	uint8_t msgRPiNext[2] = {0xFF, 0xCC};
-	uint8_t msgRPiRepeat[2] = {0xFF, 0x00};
+	uint8_t msgRPiMetadata = 0x01,
+			msgRPiBegin = 0x02,
+			msgRPiNext = 0x03,
+			msgRPiRepeat = 0x00,
+			msgRPiReset = 0x55;
 
-	uint8_t bufferSPI[2032];
+	uint8_t *pBufferSPI = NULL;
+	uint8_t metadata[5] = {0,0,0,0,0};
+	uint16_t ID = 0, size = 0;
+	uint32_t CRC32 = 0;
+
+	uint8_t RF_H = 0b11110000,
+			RF_Code = 0x00,
+			RF_ID = 0;
+	uint8_t headerPayload[2];
+
+	uint8_t BufferUART;
+
+	uint8_t BlockFeedback = 1;
 
 	image.ID_Task[0] = 'I'; 	image.ID_Task[1] = 'M'; 	image.ID_Task[2] = 'G';
-	image.parameter[0] = 0x30; 	image.parameter[1] = 0x30;
+	image.parameter[0] = 0x30; 	image.parameter[1] = 0x00;
 
 	if( xQueueSend(xQueueRadio, (void *) &pImage, ( TickType_t ) 100) != pdPASS)
 	{
@@ -1036,44 +1069,496 @@ void vTaskImage( void * pvParameters )
 		configASSERT(0);
 	}
 
+	xSemBinRadioImage = xSemaphoreCreateBinary();
+	xSemBinImgUART = xSemaphoreCreateBinary();
+	xSemBinImgSPI = xSemaphoreCreateBinary();
+
+	xQueueBlockFeedback = xQueueCreate(1, sizeof(uint8_t));
+
+	/* Verifica se foi possivel criar o semaforo */
+	if( xSemBinRadioImage == NULL || xSemBinImgUART == NULL || xQueueBlockFeedback == NULL)
+	{
+		//  # IMPLEMENTAR TRATAMENTO DE ERRO #
+		// FALTOU MEMORIA
+		/* There was insufficient FreeRTOS heap available for the semaphore to
+		be created successfully. */
+		configASSERT(0);
+	}
+
+	// Aloca memoria RAM para o buffer
+	pBufferSPI = pvPortMalloc(4056);
+
+	if(pBufferSPI == NULL)
+	{
+		// Não foi possivel alocar
+		configASSERT(0);
+		// TRATAR MELHOR ESSE ERRO
+	}
+
+
 //	SPI3->CR1 |= 0x1000;
 
-	for(;;)							// ########################### IMPLEMENTAR MAIS ETAPAS DE SEGURANÇA
+	for(;;)
 	{
 		/* Fica suspensa até o momento que for chamada */
 		vTaskSuspend(xHandleImage);
 
-		HAL_SPI_Receive_IT(&hspi3, bufferSPI, 2032);
-
-		while(image.parameter[0] != 0x31)
-		{
-			image.parameter[1] = 'W';
-			HAL_UART_Transmit(&huart1, msgRPiBegin, 2, HAL_MAX_DELAY);
-			vTaskSuspend(xHandleImage);
-		}
-
-		image.parameter[1] = 'T';
-
-		if( xTimerStart( xTimerTriagemWatchdog, 0 ) != pdPASS )			// ################ O TIMER TA BUGANDO O DEPLOY, deve ser falta de memoria
-			configASSERT(0);
-
+		// ### PERIGO, implementar um timer pq se travar aqui, a task triagem não pode ficar off pra sempre ###############################
 		vTaskSuspend(triagemTaskHandle);
 
+		// Recebe o feedback do RPi via IT
+		HAL_UART_Receive_IT(&huart1, &BufferUART, 1);
 
-		for(int i = 0; i < 5; i++)
+		// Reseta o código, para estar em um ponto seguro
+		HAL_UART_Transmit_IT(&huart1, &msgRPiReset, 1);
+
+		// Semaforo liberado via UART Callback
+		if( xSemaphoreTake(xSemBinImgUART, 10) == pdTRUE )
 		{
-			osDelay(5000);		// simula a transmissão
-			vTaskResume(xHandleTransmitter);	// beacon
+			// tratar os possiveis retornos
+			switch (BufferUART) {
+				case 0x55:
+					// Resposta esperada, Faça alguma coisa (pode informar no feedback)
+					break;
+
+				default:
+					// Resposta inesperada, Faça alguma coisa (pode informar no feedback)
+					break;
+			}
+		}
+		else
+		{
+			// Não recebeu o feedback no tempo, timeout
+			// O programa está fechado, ou o RPi travou, possivel solução, aguardar ou reiniciar o RPi
+			configASSERT(0);
 		}
 
-		image.parameter[0] = 0x30;
-		image.parameter[1] = 'S';
-		xSemaphoreGive(xSemBinRadio);
+
+		HAL_UART_Receive_IT(&huart1, &BufferUART, 1);
+		HAL_SPI_Receive_IT(&hspi3, metadata, 5);
+
+		osDelay(100);	// esse delay tem q sair daqui, seria bom algo mais inteligente, como uma msg do RPi avisando q está pronto
+
+		HAL_UART_Transmit_IT(&huart1, &msgRPiMetadata, 1);
+
+		// Aguarda feedback do RPi
+		if( xSemaphoreTake(xSemBinImgUART, 10) == pdTRUE )
+		{
+			switch (BufferUART) {
+				case 0x01:
+					// Resposta esperada, Faça alguma coisa (pode informar no feedback)
+					// metadado deve ter chego tbm
+					if( xSemaphoreTake(xSemBinImgSPI, 10) == pdTRUE )
+					{
+						// Testa pra ver se o metadado é coerente, ou foi recebido com erro
+						for(int i = 0; i < 3; i++)
+						{
+							if( (metadata[0] != 'M') || ((metadata[1] << 24 | metadata[2] << 16 | metadata[3] << 8 | metadata[4]) == 0) )
+							{
+							//	metadado zuado, tem que mandar dnv
+								osDelay(50);
+								HAL_SPI_Receive_IT(&hspi3, metadata, 5);
+								HAL_UART_Transmit_IT(&huart1, &msgRPiRepeat, 1);
+
+								if( xSemaphoreTake(xSemBinImgSPI, 10) == pdFALSE )
+								{
+									configASSERT(0);	// Timeout, reinicia essa task
+								}
+
+								if(i == 2)
+								{
+									configASSERT(0);	// Erro, não foi possivel receber os metadados sem erros, reinicia essa task
+								}
+							}
+							else
+							{
+								break;
+							}
+						}
+
+						// Metadado recebido, (pode informar no feedback)
+						// Transmitir para a GS os metadados
+
+						/* Tenta por até 50 Ticks solicitar o Mutex SPI */
+						if( xSemaphoreTake( xMutexSpiRadio, ( TickType_t ) 50 ) == pdTRUE )
+						{
+							SX_SetStandby(0x00);
+
+							uint8_t *payloadMeta;
+							payloadMeta = pvPortMalloc(7);
+
+							// HEADER
+							*(payloadMeta + 0) = 0x30;			// Codigo
+							*(payloadMeta + 1) = 'M';			// Tipo | ID
+
+							// PAYLOAD
+							*(payloadMeta + 2) = metadata[1];
+							*(payloadMeta + 3) = metadata[2];
+							*(payloadMeta + 4) = metadata[3];
+							*(payloadMeta + 5) = metadata[4];
+
+							*(payloadMeta + 6) = '\n';				// ################################## remover esse
+
+							/* Define os parametros do packet */
+							SX_SetPacketParamsLoRa(0x08, 0x00, 7, 0x01, 0x00);
+
+							/* Configura interrupção TX Done */
+							SX_SetDioIrqParams(0x01, 0x01, 0, 0);
+
+							SX_SetBufferBaseAddress(0x7F, 0x00);
+
+							/* Escreve uma mensagem de teste no buffer */
+							SX_WriteBuffer(0x7F, (uint8_t *) payloadMeta, 7);
+
+							/* Transmite a mensagem que estava no buffer */
+							SX_TX(0);
+
+							/* Libera Mutex do SPI1 */
+							xSemaphoreGive( xMutexSpiRadio );
+
+							// Parametro para o feedback
+							image.parameter[0] = 0x31;
+
+							// libera memória alocada
+							vPortFree(payloadMeta);
+
+							// Bloqueia a task Transmitter (feedback) de acontecer por 1 vez
+							if( xQueueSend(xQueueBlockFeedback, (void*)&BlockFeedback, (TickType_t)0 ) != pdTRUE )
+							{
+								/* Failed to post the message */
+								// Teoricamente nunca deve falhar
+								configASSERT(0);
+							}
+
+							// Em breve irá ocorrer uma interrupção TxDone
+							vTaskResume(triagemTaskHandle);
+
+							// Se a GS retornar um ACK o código prossegue
+							if( xSemaphoreTake(xSemBinRadioImage, portMAX_DELAY) == pdTRUE )		// AQUI PODE SER UM 'DO WHILE' e uma Queue, para informar se é necessário retransmitir os metadados
+							{
+								image.parameter[0] = 0x32;
+
+								// Agora que temos um ACK da GS, sabemos que ela conhece o tamanho do arquivo
+								//   proxima etapa é começar o envio
+
+								// ######  Talvez seja necessário colocar um osDelay aqui se o feedback for muito rápido e não de tempo do RPi acompanhar kk
+
+								// ### PERIGO, implementar um timer pq se travar aqui, a task triagem não pode ficar off pra sempre #######################################################
+								vTaskSuspend(triagemTaskHandle);
+
+								// Prepara SPI
+								HAL_SPI_Receive_IT(&hspi3, pBufferSPI, 4056);
+
+								// Prepara para receber
+								HAL_UART_Receive_IT(&huart1, &BufferUART, 1);
+
+								// Solicita inicio do envio dos primeiros 4056 bytes
+								HAL_UART_Transmit_IT(&huart1, &msgRPiBegin, 1);
+
+								// Semaforo liberado via UART Callback
+								if( xSemaphoreTake(xSemBinImgUART, 10) == pdTRUE )
+								{
+									// tratar os possiveis retornos
+									switch (BufferUART) {
+										case 0x02:
+											// Resposta esperada
+
+											if( xSemaphoreTake(xSemBinImgSPI, 1000) == pdTRUE )
+											{
+												// Pacote recebido
+
+												ID = *(pBufferSPI + 0) << 8 | *(pBufferSPI + 1);
+												size = *(pBufferSPI + 2) << 8 | *(pBufferSPI + 3);
+												CRC32 = *(pBufferSPI + 4052) << 24 | *(pBufferSPI + 4053) << 16 | *(pBufferSPI + 4054) << 8 | *(pBufferSPI + 4055);
+
+												// Verificar CRC
+
+												// Iniciar transmissão das 16 partes
+
+												// HEADER
+												// Reaproveita o espaço já alocado pra não precisar alocar mais um pedaço
+												*(pBufferSPI + 2) = 0x30;	// Codigo
+												*(pBufferSPI + 3) = 0x4F;	// Tipo | ID
+
+												// Libera este semaforo para poder dar inicio as 16 transmissões a seguir, a Task Triagem encontra-se atualmente suspensa
+												xSemaphoreGive(xSemBinRadio);
+
+												// Este loop for envia um pacote recebido do RPi, normalmente repete 8x
+												for(int i = 0; i < size/253; i++)
+												{
+													// PAYLOAD
+
+													if (xSemaphoreTake(xSemBinRadio, 1000) == pdTRUE)
+													{
+														// Tenta solicitar o SPI1 para acessar o módulo, ele deve conseguir isso sempre caso esteja td bem com a lógica
+														if( xSemaphoreTake( xMutexSpiRadio, ( TickType_t ) 50 ) == pdTRUE )
+														{
+															SX_SetStandby(0x00);
+
+															/* Define os parametros do packet */
+															SX_SetPacketParamsLoRa(0x08, 0x00, 255, 0x01, 0x00);
+
+															/* Configura interrupção TX Done */
+															SX_SetDioIrqParams(0x01, 0x01, 0, 0);
+
+															// Define o tamanho maximo de buffer para TX
+															SX_SetBufferBaseAddress(0x00, 0x00);
+
+															/* Escreve uma mensagem no buffer */
+															SX_WriteBuffer(0x00, (pBufferSPI + 2), 2);
+															SX_WriteBuffer(0x02, (pBufferSPI + 4 + (i*253)), 253);
+
+															/* Transmite a mensagem que estava no buffer */
+															SX_TX(0);
+
+															/* Libera Mutex do SPI1 */
+															xSemaphoreGive( xMutexSpiRadio );
+														}
+														else
+														{
+															// Por algum motivo não foi possivel adquirir o Mutex SPI
+															configASSERT(0);
+															// criar uma maneira de tratar a falha ou identificar o problema
+														}
+
+														// Subtrai 1 do ID
+														*(pBufferSPI + 3) = *(pBufferSPI + 3) - 1;
+													}
+													else
+													{
+														// Timeout, não houve TxDone para a transmissão dos 255 bytes
+														configASSERT(0);
+													}
+
+												}
+
+
+											}
+											else
+											{
+												// Timeout, pacote não chegou
+												configASSERT(0);
+											}
+
+											break;
+
+										default:
+											// Resposta inesperada
+											break;
+									}
+								}
+								else
+								{
+									// Não recebeu o feedback no tempo, timeout
+									// O programa está fechado, ou o RPi travou, possivel solução, aguardar ou reiniciar o RPi
+									configASSERT(0);
+								}
+
+
+							}
+
+						}
+						else
+						{
+							// Por algum motivo não foi possivel adquirir o Mutex SPI
+							configASSERT(0);
+							// criar uma maneira de tratar a falha ou identificar o problema
+						}
+
+						__NOP();
+
+					}
+					else
+					{
+						// Timeout, Metadata não chegou
+						configASSERT(0);
+					}
+					break;
+
+				default:
+					// Resposta inesperada, tratar essa situação, transmissão uart foi corrompida ou estamos em outra parte do código
+					break;
+			}
+		}
+		else
+		{
+			// Não recebeu o feedback no tempo, timeout
+			configASSERT(0);
+		}
+
+
 		vTaskResume(triagemTaskHandle);
 
-		if( xTimerStop( xTimerTriagemWatchdog, 0 ) != pdPASS )
-			configASSERT(0);
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//		// -------------------------------------------------------------------
+//		/* GS: Solicita Imagem, aí ele libera essa task
+//		 * STM: Envia comando pro RPi enviar os metadados da foto q ele tirou
+//		 * RPI: envia os metadados
+//		 * STM: Verifica se são minimamente coerentes com o que se esperaria que fosse
+//		 * STM: Envia esses metadados para GS
+//		 * GS: Recebe eles e transmite ACK dizendo que recebeu
+//		 * STM: Recebe ACK e continua para a etapa de envio do arquivo
+//		 * */
+//
+//		// *************************#######################
+//		// ASEGURE QUE A PORRA DO RPI TA DO JEITO QUE TEM QUE ESTAR, fazer um esquema de teste por exemplo, pra testar se ele ta engatilhado
+//
+//
+//
+//		while( (image.parameter[1] & 0xC0) != 0)		// enquanto não tiver a interrupção do SPI pra receber os metadados, ele fica aqui
+//		{
+//			image.parameter[1] = 0x00;
+//			uint8_t feedbackPi = 0;
+//
+//			// Prepara SPI para metadados da imagem
+//			image.parameter[1] = (image.parameter[1] & 0xCF) | (HAL_SPI_Receive_IT(&hspi3, metadata, 5)) << 4;
+//
+//			// STM diz: RPi me envie o metadado
+//			image.parameter[1] = (image.parameter[1] & 0xF3) | (HAL_UART_Transmit(&huart1, &msgMetaData, 1, 100) << 2);
+//
+//			xSemaphoreTake(xSemBinRadioImage, portMAX_DELAY);
+//		}
+//
+//		// Verifica se o metadado é minimamente coerente com o que é esperado receber
+//		if( (metadata[0] != 'M') || ((metadata[1] << 24 | metadata[2] << 16 | metadata[3] << 8 | metadata[4]) == 0) )
+//		{
+//		//	metadado zuado, tem que mandar dnv
+//			configASSERT(0);
+//		}
+//		// tem que implementar logica de transmitir o metadado e verificar se foi recebido
+//		vTaskResume(xHandleTransmitter);
+//		vTaskSuspend(xHandleImage);		// só pode avançar se receber um feedback positivo, caso contrario repita
+//
+//		RF_ID = (metadata[1] << 24 | metadata[2] << 16 | metadata[3] << 8 | metadata[4]) / 253;
+//
+//
+//		// -------------------------------------------------------------------
+//
+//		// Prepara SPI para receber os primeiros 2024 bytes
+//		HAL_SPI_Receive_IT(&hspi3, bufferSPI, 2032);
+//
+//		while(image.parameter[0] != 0x31)
+//		{
+//			image.parameter[1] = 'W';
+//			HAL_UART_Transmit(&huart1, &msgRPiBegin, 1, HAL_MAX_DELAY);
+//			vTaskSuspend(xHandleImage);
+//		}
+//
+//		// Callback de SPI tira do while acima
+//		// A partir daqui, a interrupção aconteceu e os 2032 bytes foram recebidos
+//
+//		ID = bufferSPI[0] << 8 | bufferSPI[1];
+//		size = bufferSPI[2] << 8 | bufferSPI[3];
+//		CRC32 = bufferSPI[2028] << 24 | bufferSPI[2029] << 16 | bufferSPI[2030] << 8 | bufferSPI[2031];
+//
+//		/* CRIAR ETAPA PARA VERIFICAR O CRC */
+//
+//		image.parameter[1] = 'T';
+//
+//		// Este timer assegura que a task Triagem não va ficar travada pra sempre caso essa função fique aqui por muito tempo
+//		// Por exemplo, se eu ficar preso acidentalmente em um loop aqui, o timer gera uma interrupção que aborta esta tarefa
+//		//   e retoma o controle para task Triagem, isso é uma etapa de segurança.
+//		if( xTimerStart( xTimerTriagemWatchdog, 0 ) != pdPASS )
+//			configASSERT(0);
+//
+//		// A partir de agora, o radio não entrará em RX MODE
+//		vTaskSuspend(triagemTaskHandle);
+//
+//
+//		// Este loop for envia um pacote recebido do RPi, normalmente repete 8x
+//		for(int i = 0; i < size/253; i++)
+//		{
+//			// Primeiros 2 bytes da mensagem a ser transmitida
+//			headerPayload[0] = RF_H | ((RF_ID & 0xF00) >> 12);
+//			headerPayload[1] = RF_ID & 0xFF;
+//
+//			// Tenta solicitar o SPI1 para acessar o módulo, ele deve conseguir isso sempre caso esteja td bem com a lógica
+//			if( xSemaphoreTake( xMutexSpiRadio, ( TickType_t ) 50 ) == pdTRUE )
+//			{
+//				SX_SetStandby(0x00);
+//
+//				/* Define os parametros do packet */
+//				SX_SetPacketParamsLoRa(0x08, 0x00, 255, 0x01, 0x00);
+//
+//				/* Configura interrupção TX Done */
+//				SX_SetDioIrqParams(0x01, 0x01, 0, 0);
+//
+//				// Define o tamanho maximo de buffer para TX
+//				SX_SetBufferBaseAddress(0x00, 0x00);
+//
+//				/* Escreve uma mensagem no buffer */
+//				SX_WriteBuffer(0x00, headerPayload, 2);					// primeira parte, header
+//				SX_WriteBuffer(0x02, &bufferSPI[4 + (i*253)], 253);		// segunda parte, payload
+//
+//				/* Transmite a mensagem que estava no buffer */
+//				SX_TX(0);
+//
+//				/* Libera Mutex do SPI1 */
+//				xSemaphoreGive( xMutexSpiRadio );
+//			}
+//			else
+//			{
+//				// Por algum motivo não foi possivel adquirir o Mutex SPI
+//				configASSERT(0);
+//				// criar uma maneira de tratar a falha ou identificar o problema
+//			}
+//
+//			if( xSemaphoreTake(xSemBinRadioImage, ( TickType_t ) 1000 ) == pdFALSE )			// ############ Criar metodo mais inteligente aqui pra gerar esse intervalo
+//			{
+//				// a interrupção TxDone não ocorreu dentro do intervalo de ticks
+//				configASSERT(0);
+//				// criar uma maneira de tratar a falha ou identificar o problema
+//			}
+//
+//			RF_ID--;
+//
+//		}
+//
+//		vTaskResume(xHandleTransmitter);	// beacon telemetria   ################## Implementar um outro metodo a mais que "pergunte" se é necessário enviar novamente alguma parte que foi corrompida
+//
+//		image.parameter[0] = 0x30;
+//		image.parameter[1] = 'S';
+//
+//		// Libera semaforo da task Triagem, se isso não for feito, ela pode acusar falha de TxDone quando retomar
+//		xSemaphoreGive(xSemBinRadio);
+//		vTaskResume(triagemTaskHandle);
+//
+//		// Desativa timer
+//		if( xTimerStop( xTimerTriagemWatchdog, 0 ) != pdPASS )
+//			configASSERT(0);
+//
+//
+//		/* Use the handle to obtain further information about the task. */		// ###### Está aqui só pra teste, pra ver quanta memoria a task está consumindo
+//		vTaskGetInfo( /* The handle of the task being queried. */
+//			  xHandleImage,
+//			  /* The TaskStatus_t structure to complete with information
+//			  on xTask. */
+//			  &xTaskDetails,
+//			  /* Include the stack high water mark value in the
+//			  TaskStatus_t structure. */
+//			  pdTRUE,
+//			  /* Include the task state in the TaskStatus_t structure. */
+//			  eInvalid );
+//		__NOP();
 
 	}
 }
@@ -1134,6 +1619,8 @@ void TriagemTask(void const * argument)
 	uint8_t status = 0, PayloadLengthRx = 0, RxStartBufferPointer = 0;
 	uint8_t *payload = 0;		// Ponteiro para o pacote recebido após cara RxDone
 
+	uint8_t BlockFeedback = 0;
+
 	/* Suspende a esta Task momentaneamente. Caso o rádio não enteja conectado, o primeiro if nunca ocorreria */
 	vTaskSuspend(triagemTaskHandle);		// Liberado pela task de transmissão
 
@@ -1178,8 +1665,16 @@ void TriagemTask(void const * argument)
 							case 0x50:
 								vTaskResume(xHandleDeploy);
 								break;
+
 							case 0x46:
 								vTaskResume(xHandleImage);
+								break;
+
+							case 0x66:
+								xSemaphoreGive(xSemBinRadioImage);	// A Ground Station informa que recebeu os metadados corretamente
+								BlockFeedback = 1;
+								break;
+
 							default:
 								break;
 						}
@@ -1207,8 +1702,23 @@ void TriagemTask(void const * argument)
 			// criar uma maneira de informar que houve falha
 		}
 
-		/* Libera Task de transmissão */
-		vTaskResume(xHandleTransmitter);
+
+		// bloqueia o envio de feedbacks por um determinado numero de vezes caso seja necessário
+		// Task imagem que necessita dessa lógica
+		if(uxQueueMessagesWaiting(xQueueBlockFeedback) > 0)
+		{
+			xQueueReceive(xQueueBlockFeedback, &BlockFeedback, ( TickType_t ) 0);
+		}
+
+		if (BlockFeedback == 0)
+		{
+			/* Libera Task de transmissão */
+			vTaskResume(xHandleTransmitter);
+		}
+		else
+		{
+			BlockFeedback--;
+		}
 
 	}
 
