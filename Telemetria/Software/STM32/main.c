@@ -70,6 +70,7 @@ SemaphoreHandle_t xSemBinImgSPI;
 QueueHandle_t xQueueRadio = NULL;
 QueueHandle_t xQueueBlockFeedback = NULL;
 QueueHandle_t xQueueRepeatMsg = NULL;
+QueueHandle_t xQueueRepeatMetadata = NULL;
 
 TimerHandle_t xTimerTriagemWatchdog;
 
@@ -1179,56 +1180,73 @@ void vTaskImage( void * pvParameters )
 									// Metadado recebido, (pode informar no feedback)
 									// Transmitir para a GS os metadados
 
-									/* Tenta por até 50 Ticks solicitar o Mutex SPI */
-									if( xSemaphoreTake( xMutexSpiRadio, ( TickType_t ) 50 ) == pdTRUE )
-									{
-										SX_SetStandby(0x00);
+									uint8_t repeatMetadata = 0;
 
-										uint8_t *payloadMeta;
-										payloadMeta = pvPortMalloc(7);
-
-										// HEADER
-										*(payloadMeta + 0) = 0x30;			// Codigo
-										*(payloadMeta + 1) = 'M';			// Tipo | ID
-
-										// PAYLOAD
-										*(payloadMeta + 2) = metadata[1];
-										*(payloadMeta + 3) = metadata[2];
-										*(payloadMeta + 4) = metadata[3];
-										*(payloadMeta + 5) = metadata[4];
-
-										*(payloadMeta + 6) = '\n';				// ################################## remover esse
-
-										/* Define os parametros do packet */
-										SX_SetPacketParamsLoRa(0x08, 0x00, 7, 0x01, 0x00);
-
-										/* Configura interrupção TX Done */
-										SX_SetDioIrqParams(0x01, 0x01, 0, 0);
-
-										SX_SetBufferBaseAddress(0x7F, 0x00);
-
-										/* Escreve uma mensagem de teste no buffer */
-										SX_WriteBuffer(0x7F, (uint8_t *) payloadMeta, 7);
-
-										/* Transmite a mensagem que estava no buffer */
-										SX_TX(0);
-
-										/* Libera Mutex do SPI1 */
-										xSemaphoreGive( xMutexSpiRadio );
-
-										// Parametro para o feedback
-										image.parameter[0] = 0x31;
-
-										// libera memória alocada
-										vPortFree(payloadMeta);
-
-										// Em breve irá ocorrer uma interrupção TxDone e liberar o semaforo para esta task (essa interrupção vai ser gerada graças a transmissão acima)
-										vTaskResume(triagemTaskHandle);
-
-										// Se a GS retornar um ACK o código prossegue
-										// Aguarda pela resposta da GS
-										if( xSemaphoreTake(xSemBinRadioImage, portMAX_DELAY) == pdTRUE )		// AQUI PODE SER UM 'DO WHILE' e uma Queue, para informar se é necessário retransmitir os metadados
+									do {
+										/* Tenta por até 50 Ticks solicitar o Mutex SPI */
+										if( xSemaphoreTake( xMutexSpiRadio, ( TickType_t ) 50 ) == pdTRUE )
 										{
+											SX_SetStandby(0x00);
+
+											uint8_t *payloadMeta;
+											payloadMeta = pvPortMalloc(7);
+
+											// HEADER
+											*(payloadMeta + 0) = 0x30;			// Codigo
+											*(payloadMeta + 1) = 'M';			// Tipo | ID
+
+											// PAYLOAD
+											*(payloadMeta + 2) = metadata[1];
+											*(payloadMeta + 3) = metadata[2];
+											*(payloadMeta + 4) = metadata[3];
+											*(payloadMeta + 5) = metadata[4];
+
+											*(payloadMeta + 6) = '\n';				// ################################## remover esse
+
+											/* Define os parametros do packet */
+											SX_SetPacketParamsLoRa(0x08, 0x00, 7, 0x01, 0x00);
+
+											/* Configura interrupção TX Done */
+											SX_SetDioIrqParams(0x01, 0x01, 0, 0);
+
+											SX_SetBufferBaseAddress(0x7F, 0x00);
+
+											/* Escreve uma mensagem de teste no buffer */
+											SX_WriteBuffer(0x7F, (uint8_t *) payloadMeta, 7);
+
+											/* Transmite a mensagem que estava no buffer */
+											SX_TX(0);
+
+											/* Libera Mutex do SPI1 */
+											xSemaphoreGive( xMutexSpiRadio );
+
+											// Parametro para o feedback
+											image.parameter[0] = 0x31;
+
+											// libera memória alocada
+											vPortFree(payloadMeta);
+
+											// Em breve irá ocorrer uma interrupção TxDone e liberar o semaforo para esta task (essa interrupção vai ser gerada graças a transmissão acima)
+											vTaskResume(triagemTaskHandle);
+
+
+											xQueueReceive(xQueueRepeatMetadata, &repeatMetadata, portMAX_DELAY);
+
+										} // end 'if' radioMutexSPI
+										else
+										{
+											// Por algum motivo não foi possivel adquirir o Mutex SPI
+											configASSERT(0);
+											// criar uma maneira de tratar a falha ou identificar o problema
+										}
+									} // Se a GS retornar um ACK o código prossegue
+									while (repeatMetadata);
+
+									// ACK
+									if( xSemaphoreTake(xSemBinRadioImage, 10) == pdTRUE )
+									{
+										// #######################################  ESTOU COM SONO, PROVAVELMENTE VAI DAR MERDA PQ EU ADD ESSE DO WHILE, ANALISAR MT BEM ISSO
+										do {
 											// Informa que recebeu o feedback positivo da GS
 											image.parameter[0] = 0x32;
 
@@ -1455,6 +1473,7 @@ void vTaskImage( void * pvParameters )
 																{
 																	// Aqui deve repetir o procedimento, porem com os novos pacotes 4056
 																	image.parameter[1] = 'N';
+																	msgRPiBegin = 0x03;
 																}
 
 															}
@@ -1491,20 +1510,18 @@ void vTaskImage( void * pvParameters )
 												// O RPi pode ter travado, possiveis soluções: aguardar um tempo ou reiniciar o programa ou reiniciar o RPi
 												configASSERT(0);
 											}
-										} // end 'if' feedback GS
-										else
-										{
-											// Timeout, a GS não retornou uma resposta dentro do tempo
-											// Resposta relativa ao recebimento dos metadados
-											configASSERT(0);
-										}
 
-									} // end 'if' radioMutexSPI
+
+									} while (ID > 0);
+
+
+
+									} // end 'if' feedback GS
 									else
 									{
-										// Por algum motivo não foi possivel adquirir o Mutex SPI
+										// Timeout, a GS não retornou uma resposta dentro do tempo
+										// Resposta relativa ao recebimento dos metadados
 										configASSERT(0);
-										// criar uma maneira de tratar a falha ou identificar o problema
 									}
 
 								} // end 'if' semBinSPI
@@ -1766,7 +1783,8 @@ void TriagemTask(void const * argument)
 	xSemBinRX = xSemaphoreCreateBinary();
 
 	// xQueueRepeatMsg: As mensagens que chegarem corrompidas para GS, serão informadas atravez dessa Queue
-	xQueueRepeatMsg = xQueueCreate(17, sizeof(uint8_t));
+	xQueueRepeatMsg = xQueueCreate(8, sizeof(uint8_t));
+	xQueueRepeatMetadata = xQueueCreate(1, sizeof(uint8_t));
 
 	/* Verifica se foi possivel criar os dois semaforos */
 	if( (xSemBinRadio == NULL) || (xSemBinRX == NULL) )
@@ -1783,6 +1801,7 @@ void TriagemTask(void const * argument)
 	uint8_t *payload = 0;		// Ponteiro para o pacote recebido após cara RxDone
 
 	uint8_t BlockFeedback = 0;
+	uint8_t repeatMetadata = 1;
 
 	/* Suspende a esta Task momentaneamente. Caso o rádio não enteja conectado, o primeiro if nunca ocorreria */
 	vTaskSuspend(triagemTaskHandle);		// Liberado pela task de transmissão
@@ -1828,7 +1847,7 @@ void TriagemTask(void const * argument)
 								vTaskResume(xHandleDeploy);
 								break;
 
-							case 0x46:
+							case 0x46:	// Inicia Imagem
 								// Libero a task Imagem e bloqueio o feedback por 1 ciclo, quando Task Image for acionada, ela suspende Triagem
 								// Assim que Task Imagem estiver no jeito pra transmitir o metadado, ela libera Triagem (que está aguardando o semaforo agr)
 								//   e o semaforo TxDone ocorre quando o metadado é transmitido, após isso, o ciclo normal se repete
@@ -1836,12 +1855,22 @@ void TriagemTask(void const * argument)
 								BlockFeedback = 1;
 								break;
 
-							case 0x66:
+							case 0x60:	// repete metadado
+								repeatMetadata = 1;
+								xQueueSend(xQueueRepeatMetadata, &repeatMetadata, 0);
+
+								BlockFeedback = 1;
+								break;
+
+							case 0x66:	// Confirma Metadado e Inicia transmissão
+								repeatMetadata = 0;
+								xQueueSend(xQueueRepeatMetadata, &repeatMetadata, 0);
+
 								xSemaphoreGive(xSemBinRadioImage);	// A Ground Station informa que recebeu os metadados corretamente
 								BlockFeedback = 1;
 								break;
 
-							case 0x69:
+							case 0x69:	// Informa se precisa repetir ou se pode enviar proximo pacote/ Finalizar
 								// Aqui recebe os pacotinhos corrompidos e informa via queue para Imagem se houve ou não
 								// payload[0]: ID = 0x69
 								// payload[1]: quantos : 0 ~ F
@@ -1853,7 +1882,6 @@ void TriagemTask(void const * argument)
 										xQueueSend(xQueueRepeatMsg, (payload + 1 + i), 0);
 								}
 
-//								BlockFeedback = 1;
 								break;
 
 							default:
