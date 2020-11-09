@@ -21,7 +21,6 @@
 #include "main.h"
 #include "cmsis_os.h"
 
-
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "SPI_SX.h"
@@ -50,7 +49,7 @@ CRC_HandleTypeDef hcrc;
 SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi3;
 
-TIM_HandleTypeDef htim5;
+TIM_HandleTypeDef htim7;
 
 UART_HandleTypeDef huart1;
 
@@ -79,9 +78,9 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_CRC_Init(void);
 static void MX_SPI1_Init(void);
-static void MX_TIM5_Init(void);
 static void MX_SPI3_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_TIM7_Init(void);
 void StandbyTask(void const * argument);
 
 /* USER CODE BEGIN PFP */
@@ -136,9 +135,9 @@ int main(void)
   MX_GPIO_Init();
   MX_CRC_Init();
   MX_SPI1_Init();
-  MX_TIM5_Init();
   MX_SPI3_Init();
   MX_USART1_UART_Init();
+  MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
   // -----------------------------------------------------------------------------
   // -----------------------------------------------------------------------------
@@ -154,7 +153,7 @@ int main(void)
   xReturned = xTaskCreate(
                   vTaskRadio,       		/* Function that implements the task. */
                   "Radio",    				/* Text name for the task. */
-                  400,      				/* Stack size in words, not bytes. */
+                  256,      				/* Stack size in words, not bytes. */
                   ( void * ) 1,    			/* Parameter passed into the task. */
 				  ( ( UBaseType_t ) 1U ),	/* Priority at which the task is created. */
                   &xHandleRadio );    /* Used to pass out the created task's handle. */
@@ -172,7 +171,7 @@ int main(void)
     xReturned = xTaskCreate(				/* Create the task, storing the handle. */
                     vTaskImage,       		/* Function that implements the task. */
                     "Image",    			/* Text name for the task. */
-                    1700,      				/* Stack size in words, not bytes. */
+                    128,      				/* Stack size in words, not bytes. */
                     ( void * ) 1,    		/* Parameter passed into the task. */
   				  ( ( UBaseType_t ) 2U ),	/* Priority at which the task is created. */
                     &xHandleImage );   /* Used to pass out the created task's handle. */
@@ -285,8 +284,7 @@ int main(void)
 
   /* Create the thread(s) */
   /* definition and creation of standbyTask */
-//  osThreadDef(standbyTask, StandbyTask, osPriorityNormal, 0, 64);
-//  standbyTaskHandle = osThreadCreate(osThread(standbyTask), NULL);
+
 
   /* USER CODE BEGIN RTOS_THREADS */
 
@@ -512,47 +510,44 @@ static void MX_SPI3_Init(void)
 }
 
 /**
-  * @brief TIM5 Initialization Function
+  * @brief TIM7 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_TIM5_Init(void)
+static void MX_TIM7_Init(void)
 {
 
-  /* USER CODE BEGIN TIM5_Init 0 */
+  /* USER CODE BEGIN TIM7_Init 0 */
 
-  /* USER CODE END TIM5_Init 0 */
+  /* USER CODE END TIM7_Init 0 */
 
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
 
-  /* USER CODE BEGIN TIM5_Init 1 */
+  /* USER CODE BEGIN TIM7_Init 1 */
 
-  /* USER CODE END TIM5_Init 1 */
-  htim5.Instance = TIM5;
-  htim5.Init.Prescaler = 0;
-  htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim5.Init.Period = 4294967295;
-  htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim5) != HAL_OK)
+  /* USER CODE END TIM7_Init 1 */
+  htim7.Instance = TIM7;
+  htim7.Init.Prescaler = 4;
+  htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim7.Init.Period = 23;
+  htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
   {
     Error_Handler();
   }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim5, &sClockSourceConfig) != HAL_OK)
+  if (HAL_TIM_OnePulse_Init(&htim7, TIM_OPMODE_SINGLE) != HAL_OK)
   {
     Error_Handler();
   }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig) != HAL_OK)
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN TIM5_Init 2 */
+  /* USER CODE BEGIN TIM7_Init 2 */
 
-  /* USER CODE END TIM5_Init 2 */
+  /* USER CODE END TIM7_Init 2 */
 
 }
 
@@ -769,6 +764,9 @@ void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin)
 
 void vTaskRadio( void * pvParameters )
 {
+	UBaseType_t uxHighWaterMarkRadio;
+	uxHighWaterMarkRadio = uxTaskGetStackHighWaterMark( NULL );
+
 	// Feedback
 	FbRadio.ID_Task[0] = 'R';	FbRadio.ID_Task[1] = 'D';
 	FbRadio.parameter[0] = '-';	FbRadio.parameter[1] = '-';	FbRadio.parameter[2] = '-';
@@ -809,11 +807,12 @@ void vTaskRadio( void * pvParameters )
 	 *  												 *
 	 *  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 
-	TIM5->CR1 = 0x04;		// Control register, Only counter overflow/underflow generates an update interrupt or DMA request
-	TIM5->SR = 0;			// Clear Flag
-	TIM5->DIER = 0x01;		// Update interrupt enable
-	TIM5->PSC = 0x02;		// Clock prescaler			APB1_Timer_clock/2
-	TIM5->ARR = 0x1E;		// Auto-reload register
+	// Timer configurado em 400n para clock de 240MHz, o resultado final considera o tempo do timer + o atraso do codigo
+//	TIM7->PSC = 0x04;		// Clock prescaler
+//	TIM7->ARR = 23;		// Auto-reload register
+
+	TIM7->SR = 0x00;		// Clear Flag Interrupt
+	TIM7->DIER |= 0x01;		// Update interrupt enable
 
 	//-----------------------------------------------------------------------------------------------------------------
 
@@ -876,6 +875,8 @@ void vTaskRadio( void * pvParameters )
 				{	// Timeout, o radio não gerou interrupção
 					HAL_GPIO_WritePin(RXEN_GPIO_Port, RXEN_Pin, GPIO_PIN_RESET);			// Desativa o amplificador de RF (RX) para poupar energia
 					state = transmit;
+
+					uxHighWaterMarkRadio = uxTaskGetStackHighWaterMark( NULL );
 				}
 				break;
 //----------------------------------------------------------------------------------------------------------------------------------
@@ -1065,6 +1066,9 @@ void HAL_UART_RxCpltCallback (UART_HandleTypeDef * huart)
 
 void vTaskImage( void * pvParameters )
 {
+	UBaseType_t uxHighWaterMarkImage;
+	uxHighWaterMarkImage = uxTaskGetStackHighWaterMark( NULL );
+
 	// Feedback
 	FbImg.ID_Task[0] = 'I';		FbImg.ID_Task[1] = 'M';
 	FbImg.parameter[0] = ' ';	FbImg.parameter[1] = ' ';	FbImg.parameter[2] = ' ';
@@ -1079,6 +1083,10 @@ void vTaskImage( void * pvParameters )
 	uint8_t state = suspend;
 	uint8_t ImgAction = 0;
 	uint32_t CRC32 = 0, CRC32_Calc = 0;
+
+	// HAL status
+	HAL_StatusTypeDef status_UART_TX = 0, status_UART_RX = 0, status_SPI_RX = 0;
+	_Bool flag_UART_Error = 0, flag_SPI_Error = 0;
 
 	// Semaphore Create
 	xSemBinUART = xSemaphoreCreateBinary();
@@ -1098,7 +1106,7 @@ void vTaskImage( void * pvParameters )
 		switch (state) {
 			case suspend:
 
-				if(xTaskNotifyWait(0x00, 0xFFFFFFFF, (uint32_t *) &ImgAction, 5) == pdTRUE)
+				if(xTaskNotifyWait(0x00, 0xFFFFFFFF, (uint32_t *) &ImgAction, 1) == pdTRUE)
 				{
 					if(ImgAction == SUSPEND)	//	Equivale a um Reset do programa do RPi
 					{
@@ -1107,32 +1115,51 @@ void vTaskImage( void * pvParameters )
 				}
 				else
 				{
+					uxHighWaterMarkImage = uxTaskGetStackHighWaterMark( NULL );
 					vTaskSuspend(xHandleImage);
 				}
 				break;
 //----------------------------------------------------------------------------------------------------------------------------------
 			case timeout:
 				configASSERT(0);
+
+				if(flag_UART_Error)
+				{
+					// O RPi não enviou nenhuma resposta, o codigo (ou o RPi) pode estar travado ou fechado
+
+				}
+
+				if(flag_SPI_Error)
+				{
+
+				}
+
 				break;
 //----------------------------------------------------------------------------------------------------------------------------------
 			case uart:
 				// UART TX (2.1)
-				HAL_UART_Receive_IT(&huart1, &feedbackUART, 1);					// Prepara UART para receber feedback
+				status_UART_RX = HAL_UART_Receive_IT(&huart1, &feedbackUART, 1);				// Prepara UART para receber feedback
 
 				switch(ImgAction) {
-					case SUSPEND:												// Coloca em um estado conhecido (equivale a um reset)
-						HAL_UART_Transmit_IT(&huart1, &msgRPi[suspendRPi], 1);
+					case SUSPEND:																// Coloca em um estado conhecido (equivale a um reset)
+						status_UART_TX = HAL_UART_Transmit_IT(&huart1, &msgRPi[suspendRPi], 1);
 						break;
 
-					case PICTURE:												// Tira foto
-						HAL_UART_Transmit_IT(&huart1, &msgRPi[picture], 1);
+					case PICTURE:																// Tira foto
+						status_UART_TX = HAL_UART_Transmit_IT(&huart1, &msgRPi[picture], 1);
 						break;
 
-					case SEND:													// Recebe parte do arquivo gerado
-						HAL_SPI_Receive_IT(&hspi3, pBufferSPI, 4060);			// Prepara SPI para receber
-						HAL_UART_Transmit_IT(&huart1, &msgRPi[sendRPi], 1);		// Solicita a transferencia
+					case SEND:																	// Recebe parte do arquivo gerado
+						status_SPI_RX = HAL_SPI_Receive_IT(&hspi3, pBufferSPI, 4060);			// Prepara SPI para receber
+						status_UART_TX = HAL_UART_Transmit_IT(&huart1, &msgRPi[sendRPi], 1);	// Solicita a transferencia
 						break;
 				}
+
+				// HAL Feedback
+				if( (status_UART_TX != HAL_OK) || (status_UART_RX != HAL_OK) || (status_SPI_RX != HAL_OK) )	{
+					state = unexpected;
+					flag_UART_Error = 1; }
+
 				// UART RX (2.2)
 				if(xSemaphoreTake(xSemBinUART, 15) == pdTRUE)
 				{
@@ -1142,12 +1169,14 @@ void vTaskImage( void * pvParameters )
 					}
 					else
 					{
+						flag_UART_Error = 1;
 						state = unexpected;
 					}
 				}
 				else
 				{
-					state = timeout;										// INFORMAR TIMEOUT DO UART
+					flag_UART_Error = 1;
+					state = timeout;
 				}
 				break;
 //----------------------------------------------------------------------------------------------------------------------------------
@@ -1171,6 +1200,30 @@ void vTaskImage( void * pvParameters )
 //----------------------------------------------------------------------------------------------------------------------------------
 			case unexpected:
 				configASSERT(0);
+
+				if(flag_UART_Error)
+				{
+					// A comunicacao UART entre STM e RPi falhou, o comando foi corrompido
+
+					if(status_UART_RX)
+					{
+
+					}
+					else if(status_UART_TX)
+					{
+
+					}
+					else if(status_SPI_RX)
+					{
+
+					}
+				}
+
+				if(flag_SPI_Error)
+				{
+					// tenta novamente mais 2x, isso foi causado por falha no CRC, está relacionado com a integridade do pacote enviado pelo RPi
+				}
+
 				break;
 //----------------------------------------------------------------------------------------------------------------------------------
 			case spi:
@@ -1188,12 +1241,13 @@ void vTaskImage( void * pvParameters )
 					else
 					{
 						// CRC ERROR
-						// INFORMA PARA O ESTADO unexpected QUE O PACOTE CHEGOU ZUADO VIA SPI E É PRA SOLICITAR NOVAMENTE (3x)
+						flag_SPI_Error = 1;
 						state = unexpected;
 					}
 				}
 				else
 				{
+					flag_SPI_Error = 1;
 					state = timeout;
 				}
 				break;
@@ -1227,6 +1281,9 @@ void vTaskDeploy( void * pvParameters )
 	 *
 	 */
 
+	UBaseType_t uxHighWaterMarkDeploy;
+	uxHighWaterMarkDeploy = uxTaskGetStackHighWaterMark( NULL );
+
 	FbDpl.ID_Task[0] = 'D'; 		FbDpl.ID_Task[1] = 'P';
 	FbDpl.parameter[0] = FOLDED;	FbDpl.parameter[1] = ' ';		FbDpl.parameter[2] = ' ';
 
@@ -1247,6 +1304,7 @@ void vTaskDeploy( void * pvParameters )
 				FbDpl.parameter[0] = NOT_DEPLOYED;
 		}
 
+		uxHighWaterMarkDeploy = uxTaskGetStackHighWaterMark( NULL );
 		vTaskSuspend(xHandleDeploy);
 
 	}
@@ -1257,7 +1315,7 @@ void vTaskMemory( void * pvParameters )
 	FbMmry.ID_Task[0] = 'M';	FbMmry.ID_Task[1] = 'R';
 	FbMmry.parameter[0] = ' ';	FbMmry.parameter[1] = ' ';	FbMmry.parameter[2] = ' ';
 
-	vTaskSuspend(xHandleMemory);
+//	vTaskSuspend(xHandleMemory);
 
 	for(;;)
 	{
@@ -1270,11 +1328,11 @@ void vTaskSensor( void * pvParameters )
 	FbSensor.ID_Task[0] = 'S';		FbSensor.ID_Task[1] = 'R';
 	FbSensor.parameter[0] = ' ';	FbSensor.parameter[1] = ' ';	FbSensor.parameter[2] = ' ';
 
-	vTaskSuspend(xHandleSensor);
+//	vTaskSuspend(xHandleSensor);
 
 	for(;;)
 	{
-		osDelay(1000);
+		osDelay(100);
 	}
 }
 
@@ -1321,7 +1379,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
-
+//  if (htim->Instance == TIM7) {
+//	  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+//  }
   /* USER CODE END Callback 1 */
 }
 
