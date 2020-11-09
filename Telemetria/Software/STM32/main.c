@@ -717,7 +717,7 @@ feedback FbImg, FbCtrl, FbDpl, FbMmry, FbSensor, FbRadio;
 #define SUSPEND		0x55
 #define PICTURE		0x0F
 #define SEND		0xC3
-#define REPEAT		0xA5
+#define CONTINUE	0xA5
 
 
 uint8_t *pBufferSPI = NULL;
@@ -789,6 +789,7 @@ void vTaskRadio( void * pvParameters )
 	uint8_t payload[255];
 	uint16_t contador = 0;
 	for(int i = 0; i < sizeof(payload); i++)	payload[i] = 0x00;		// zera a memoria, mensagem de feedback
+	uint8_t resto = 0, ultimo = 0;
 
 	// Image
 	_Bool flag_metadada = 0;
@@ -918,6 +919,15 @@ void vTaskRadio( void * pvParameters )
 							size = *(pBufferSPI + 2) << 8 | *(pBufferSPI + 3);
 							message_repeat[0] = 0x80 | (size/253);
 
+							resto = size % 253;
+							if(resto)
+							{
+								ultimo = message_repeat[0] & 0x1F;
+								message_repeat[0]++;
+							}
+							else
+								ultimo = 255;	// um numero grande pra exessao não ocorrer quando não deve
+
 							ID = *(pBufferSPI + 0) << 8 | *(pBufferSPI + 1);
 							FbImg.parameter[0] = 'I'; FbImg.parameter[1] = 'D'; FbImg.parameter[2] = 0x30 | (0xF & ID);
 						}
@@ -934,11 +944,20 @@ void vTaskRadio( void * pvParameters )
 								*(pBufferSPI + 4059) = 0x40 | (message_repeat[1 + (i/2)] & 0x0F);
 
 							SX_SetStandby(0x00);
-							SX_SetPacketParamsLoRa(0x08, 0x00, 255, 0x01, 0x00);
+
+							if( (*(pBufferSPI + 4059) & 0x0F) == ultimo)					// (*(pBufferSPI + 4059) & 0x0F) é o indice da transmissão
+								SX_SetPacketParamsLoRa(0x08, 0x00, resto+2, 0x01, 0x00);
+							else
+								SX_SetPacketParamsLoRa(0x08, 0x00, 255, 0x01, 0x00);
+
 							SX_SetDioIrqParams(0x01, 0x01, 0, 0);
 							SX_SetBufferBaseAddress(0x00, 0x00);
 							SX_WriteBuffer(0x00, (pBufferSPI + 4058), 2);												// HEADER
-							SX_WriteBuffer(0x02, (pBufferSPI + 4 + ( ((*(pBufferSPI + 4059)) & 0x0F) * 253 )), 253);	// PAYLOAD
+
+							if( (*(pBufferSPI + 4059) & 0x0F) == ultimo)
+								SX_WriteBuffer(0x02, (pBufferSPI + 4 + ( ((*(pBufferSPI + 4059)) & 0x0F) * 253 )), resto);	// PAYLOAD
+							else
+								SX_WriteBuffer(0x02, (pBufferSPI + 4 + ( ((*(pBufferSPI + 4059)) & 0x0F) * 253 )), 253);	// PAYLOAD
 							SX_TX(0);
 
 							xTaskNotifyWait(0x00, 0xFFFFFFFF, &radioFeedback, 5000);		// Aguarda pela interrupcao TxDone
@@ -995,13 +1014,13 @@ void vTaskRadio( void * pvParameters )
 							vTaskResume(xHandleImage);
 							break;
 
-						case 0x60:
+						case 0x47:
 							FbRadio.parameter[0] = 'M';	FbRadio.parameter[1] = 'S';	FbRadio.parameter[2] = 'D';
 							flag_metadada = 1;
 							xSemaphoreGive(xSemBinSendImage);
 							break;
 
-						case 0x66:
+						case 0x48:
 							FbRadio.parameter[0] = 'I';	FbRadio.parameter[1] = 'S';	FbRadio.parameter[2] = 'D';
 							message_repeat[0] = 16;
 							message_repeat[1] = 0x01;
@@ -1015,7 +1034,7 @@ void vTaskRadio( void * pvParameters )
 							xSemaphoreGive(xSemBinSendImage);
 							break;
 
-						case 0x69:
+						case 0x49:
 							FbRadio.parameter[0] = 'R';	FbRadio.parameter[1] = 'P';	FbRadio.parameter[2] = 'T';
 							message_repeat[0] = *(pRadioBuffer+2) | (message_repeat[0] & 0x80);
 							message_repeat[1] = *(pRadioBuffer+3);
@@ -1027,6 +1046,21 @@ void vTaskRadio( void * pvParameters )
 							message_repeat[7] = *(pRadioBuffer+9);
 							message_repeat[8] = *(pRadioBuffer+10);
 							xSemaphoreGive(xSemBinSendImage);
+							break;
+
+						case 0x4A:
+							FbRadio.parameter[0] = 'N';	FbRadio.parameter[1] = 'X';	FbRadio.parameter[2] = 'T';
+							message_repeat[0] = 16;
+							message_repeat[1] = 0x01;
+							message_repeat[2] = 0x23;
+							message_repeat[3] = 0x45;
+							message_repeat[4] = 0x67;
+							message_repeat[5] = 0x89;
+							message_repeat[6] = 0xAB;
+							message_repeat[7] = 0xCD;
+							message_repeat[8] = 0xEF;
+							xTaskNotify(xHandleImage, CONTINUE, eSetValueWithOverwrite);
+							vTaskResume(xHandleImage);
 							break;
 
 						default:
@@ -1074,8 +1108,8 @@ void vTaskImage( void * pvParameters )
 	FbImg.parameter[0] = ' ';	FbImg.parameter[1] = ' ';	FbImg.parameter[2] = ' ';
 
 	// Raspberry Pi State Machine
-	enum {config, finish, suspendRPi, picture, sendRPi, repeat};
-	static uint8_t msgRPi[6] = {CONFIG, FINISH, SUSPEND, PICTURE, SEND, REPEAT};
+	enum {configRPi, finishRPi, suspendRPi, pictureRPi, sendRPi, continueRPi};
+	static uint8_t msgRPi[6] = {CONFIG, FINISH, SUSPEND, PICTURE, SEND, CONTINUE};
 	uint8_t feedbackUART = 0;
 
 	// State Machine
@@ -1106,12 +1140,9 @@ void vTaskImage( void * pvParameters )
 		switch (state) {
 			case suspend:
 
-				if(xTaskNotifyWait(0x00, 0xFFFFFFFF, (uint32_t *) &ImgAction, 1) == pdTRUE)
+				if(xTaskNotifyWait(0x00, 0xFFFFFFFF, (uint32_t *) &ImgAction, 0) == pdTRUE)
 				{
-					if(ImgAction == SUSPEND)	//	Equivale a um Reset do programa do RPi
-					{
-						state = uart;
-					}
+					state = uart;
 				}
 				else
 				{
@@ -1121,7 +1152,9 @@ void vTaskImage( void * pvParameters )
 				break;
 //----------------------------------------------------------------------------------------------------------------------------------
 			case timeout:
-				configASSERT(0);
+
+				FbImg.parameter[0] = 'E';	FbImg.parameter[1] = 'R';	FbImg.parameter[2] = 'R';
+				state = suspend;
 
 				if(flag_UART_Error)
 				{
@@ -1146,12 +1179,17 @@ void vTaskImage( void * pvParameters )
 						break;
 
 					case PICTURE:																// Tira foto
-						status_UART_TX = HAL_UART_Transmit_IT(&huart1, &msgRPi[picture], 1);
+						status_UART_TX = HAL_UART_Transmit_IT(&huart1, &msgRPi[pictureRPi], 1);
 						break;
 
 					case SEND:																	// Recebe parte do arquivo gerado
 						status_SPI_RX = HAL_SPI_Receive_IT(&hspi3, pBufferSPI, 4060);			// Prepara SPI para receber
 						status_UART_TX = HAL_UART_Transmit_IT(&huart1, &msgRPi[sendRPi], 1);	// Solicita a transferencia
+						break;
+
+					case CONTINUE:
+						status_SPI_RX = HAL_SPI_Receive_IT(&hspi3, pBufferSPI, 4060);				// Prepara SPI para receber
+						status_UART_TX = HAL_UART_Transmit_IT(&huart1, &msgRPi[continueRPi], 1);	// Solicita a transferencia
 						break;
 				}
 
@@ -1192,6 +1230,7 @@ void vTaskImage( void * pvParameters )
 						state = uart;
 						break;
 
+					case CONTINUE:
 					case SEND:
 						state = spi;
 						break;
@@ -1199,8 +1238,6 @@ void vTaskImage( void * pvParameters )
 				break;
 //----------------------------------------------------------------------------------------------------------------------------------
 			case unexpected:
-				configASSERT(0);
-
 				if(flag_UART_Error)
 				{
 					// A comunicacao UART entre STM e RPi falhou, o comando foi corrompido
@@ -1222,6 +1259,9 @@ void vTaskImage( void * pvParameters )
 				if(flag_SPI_Error)
 				{
 					// tenta novamente mais 2x, isso foi causado por falha no CRC, está relacionado com a integridade do pacote enviado pelo RPi
+					flag_SPI_Error = 0;
+					ImgAction = SEND;
+					state = uart;
 				}
 
 				break;
@@ -1235,6 +1275,7 @@ void vTaskImage( void * pvParameters )
 					if(CRC32 == CRC32_Calc)
 					{
 						// CRC OK
+						FbImg.parameter[0] = 'C';	FbImg.parameter[1] = 'R';	FbImg.parameter[2] = 'C';
 						xSemaphoreGive(xSemBinSendImage);
 						state = suspend;
 					}
