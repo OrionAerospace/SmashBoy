@@ -696,6 +696,28 @@ static void MX_GPIO_Init(void)
 // ---------------------------------------------------------------------------------------------
 // ---------------------------------------------------------------------------------------------
 
+
+void HAL_SPI_RxCpltCallback (SPI_HandleTypeDef * hspi)
+{
+	static BaseType_t xHigherPriorityTaskWoken;
+	xHigherPriorityTaskWoken = pdFALSE;
+
+	xSemaphoreGiveFromISR(xSemBinSPI, &xHigherPriorityTaskWoken);
+
+	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+
+void HAL_UART_RxCpltCallback (UART_HandleTypeDef * huart)
+{
+	static BaseType_t xHigherPriorityTaskWoken;
+	xHigherPriorityTaskWoken = pdFALSE;
+
+	xSemaphoreGiveFromISR(xSemBinUART, &xHigherPriorityTaskWoken);
+
+	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+
+
 /* Struct feedback é a forma padronizada que as tasks vão informar um feedback para a GS */
 typedef struct
 {
@@ -706,10 +728,10 @@ typedef struct
 feedback FbImg, FbCtrl, FbDpl, FbMmry, FbSensor, FbRadio;
 
 // Status Task Deploy
-#define FOLDED  		0x30
-#define DEPLOYING  		0x31
-#define NOT_DEPLOYED  	0x32
-#define FULLY_DEPLOYED  0x33
+#define FOLDED  		0x0
+#define DEPLOYING  		0x1
+#define NOT_DEPLOYED  	0x2
+#define FULLY_DEPLOYED  0x3
 
 // RPi Task Image
 #define CONFIG		0x00
@@ -734,8 +756,8 @@ void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin)
 
 	switch (GPIO_Pin) {
 		case Fdb_Deploy_Pin:
-			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);			// Desativa elemento de aquecimento
-			FbDpl.parameter[0] = FULLY_DEPLOYED;								// Altera status do feedback do deploy
+			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);										// Desativa elemento de aquecimento
+			xTaskNotifyFromISR(xHandleDeploy, FULLY_DEPLOYED, eSetValueWithOverwrite, &xHigherPriorityTaskWoken);		// Informa Task Deploy
 			break;
 
 		case DIO1_Pin:
@@ -764,12 +786,13 @@ void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin)
 
 void vTaskRadio( void * pvParameters )
 {
+	// Desenvolvimento
 	UBaseType_t uxHighWaterMarkRadio;
 	uxHighWaterMarkRadio = uxTaskGetStackHighWaterMark( NULL );
 
 	// Feedback
 	FbRadio.ID_Task[0] = 'R';	FbRadio.ID_Task[1] = 'D';
-	FbRadio.parameter[0] = '-';	FbRadio.parameter[1] = '-';	FbRadio.parameter[2] = '-';
+	FbRadio.parameter[0] = ' ';	FbRadio.parameter[1] = ' ';	FbRadio.parameter[2] = ' ';
 
 	/* Array de ponteiros que armazena todos os endereços das variaveis de feedbacks */
 	feedback *pArrayFeedback[] = {&FbDpl, &FbImg, &FbRadio, &FbCtrl, &FbMmry, &FbSensor};
@@ -798,15 +821,9 @@ void vTaskRadio( void * pvParameters )
 
 	//-----------------------------------------------------------------------------------------------------------------
 
-	/* -=-=-=-=-=-=-=-=- TIMER_5 SETUP -=-=-=-=-=-=-=-=- *
-	 *													 *
-	 * Este timer serve para dar tempo ao BUSY,			 *
-	 *  especificado em datasheet, pag 52, Tsw.   		 *
-	 *  												 *
-	 *  Está configurado para operar com 480MHz no clock *
-	 *  	principal, 240MHz em APB1_Timer_clock		 *
-	 *  												 *
-	 *  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+	// -=-=-=-=-=-=-=-=- TIMER_5 SETUP -=-=-=-=-=-=-=-=-
+	// Este timer serve para dar tempo ao BUSY, especificado em datasheet, pag 52, Tsw.
+	// Está configurado para operar com 480MHz no clock principal, 240MHz em APB1_Timer_clock
 
 	// Timer configurado em 400n para clock de 240MHz, o resultado final considera o tempo do timer + o atraso do codigo
 //	TIM7->PSC = 0x04;		// Clock prescaler
@@ -819,15 +836,15 @@ void vTaskRadio( void * pvParameters )
 
 	/* -=-=-=-=-=-=-=-=- RADIO SETUP -=-=-=-=-=-=-=-=- */
 
-	uint8_t LoRaSyncWord[2] = { 0x14, 0x24 };							/* Sync Word Lora*/
+	uint8_t LoRaSyncWord[2] = { 0x14, 0x24 };							// Sync Word Lora
 
-	HAL_GPIO_WritePin(NRST_GPIO_Port, NRST_Pin, GPIO_PIN_SET);			/* Habilita o rádio */
-	HAL_GPIO_WritePin(TXEN_GPIO_Port, TXEN_Pin, GPIO_PIN_RESET);		/* Desativa o amplificador de RF (TX) para poupar (MUITA) energia */
-	HAL_GPIO_WritePin(RXEN_GPIO_Port, RXEN_Pin, GPIO_PIN_RESET);		/* Desativa o amplificador de RF (RX) para poupar energia */
+	HAL_GPIO_WritePin(NRST_GPIO_Port, NRST_Pin, GPIO_PIN_SET);			// Habilita o rádio
+	HAL_GPIO_WritePin(TXEN_GPIO_Port, TXEN_Pin, GPIO_PIN_RESET);		// Desativa o amplificador de RF (TX) para poupar (MUITA) energia
+	HAL_GPIO_WritePin(RXEN_GPIO_Port, RXEN_Pin, GPIO_PIN_RESET);		// Desativa o amplificador de RF (RX) para poupar energia
 
-	osDelay(50);														/* Aguarda um tempinho para estabilização do radio*/
+	osDelay(50);														// Aguarda um tempinho para estabilização do radio
 
-	SX_SetStandby(0x00);												/* Modo Standby para poder realizar as configurações iniciais */
+	SX_SetStandby(0x00);												// Modo Standby para poder realizar as configurações iniciais
 
 	/* Rotinas de calibração */
 	SX_ClearDeviceErrors();
@@ -860,7 +877,6 @@ void vTaskRadio( void * pvParameters )
 		switch (state)
 		{
 			case suspend:
-
 				if( xTaskNotifyWait(0x00, 0xFFFFFFFF, &radioFeedback, 2000) == pdTRUE)		// Notificado via interrupcao externa
 				{
 					if( 0x06 == (radioFeedback & 0x0F) )
@@ -871,110 +887,108 @@ void vTaskRadio( void * pvParameters )
 					{	// Causado pela interrupção RxDone, algo foi recebido
 						state = screening;
 					}
+					else if( 0x0B == (radioFeedback & 0x0F) )
+					{	// Aviso da Task Image informando que está pronta para transmitir
+						HAL_GPIO_WritePin(RXEN_GPIO_Port, RXEN_Pin, GPIO_PIN_RESET);		// Desativa o amplificador de RF (RX) para poupar energia
+						state = transmit;
+					}
 				}
 				else
-				{	// Timeout, o radio não gerou interrupção
+				{	// Timeout, o radio não gerou interrupção, transmite telemetria
 					HAL_GPIO_WritePin(RXEN_GPIO_Port, RXEN_Pin, GPIO_PIN_RESET);			// Desativa o amplificador de RF (RX) para poupar energia
 					state = transmit;
 
-					uxHighWaterMarkRadio = uxTaskGetStackHighWaterMark( NULL );
+					uxHighWaterMarkRadio = uxTaskGetStackHighWaterMark( NULL );				// Remover isso daqui futuramente, está aqui para analise ##################
 				}
 				break;
 //----------------------------------------------------------------------------------------------------------------------------------
 			case receive:
-
 				SX_SetDioIrqParams(0x02, 0, 0x02, 0);										// Configura interrupção RX Done
 				SX_RX(0);																	// Coloca o rádio em RX Mode
 				state = suspend;
 				break;
 //----------------------------------------------------------------------------------------------------------------------------------
-			case transmit:
-											//	=-=-=-=-=  IMAGEM  =-=-=-=-=
-
+			case transmit:					//		=-=-=-=-=  IMAGEM  =-=-=-=-=
 				if(xSemaphoreTake(xSemBinSendImage, 0) == pdTRUE)							// Semaforo relacionado com o envio da imagem
 				{
-					if(flag_metadada)
+					if(flag_metadada)		//	    - - - --  Metadados  -- - - - 			// Flag para realizar aquisição do metadado uma única vez
 					{
-						flag_metadada = 0;		// clear flag
+						flag_metadada = 0;													// clear flag
 
-						metadata[0] = 0x55;		// Codigo de indicacao		// HEADER
-						metadata[1] = 0x4D;		// Tipo						// HEADER
-						metadata[2] = *(pBufferSPI + 4052);					// METADATA
-						metadata[3] = *(pBufferSPI + 4053);					// METADATA
-						metadata[4] = *(pBufferSPI + 4054);					// METADATA
-						metadata[5] = *(pBufferSPI + 4055);					// METADATA
+						metadata[0] = 0x50;					// HEADER						// Codigo de identificação
+						metadata[1] = 0x4D;					// HEADER						// Tipo de dado
+						metadata[2] = *(pBufferSPI + 4052);	// PAYLOAD
+						metadata[3] = *(pBufferSPI + 4053);	// PAYLOAD
+						metadata[4] = *(pBufferSPI + 4054);	// PAYLOAD
+						metadata[5] = *(pBufferSPI + 4055);	// PAYLOAD
 
-						SX_SetStandby(0x00);
-						SX_SetPacketParamsLoRa(0x08, 0x00, sizeof(metadata), 0x01, 0x00);
-						SX_SetDioIrqParams(0x01, 0x01, 0, 0);
-						SX_SetBufferBaseAddress(0x00, 0x00);
-						SX_WriteBuffer(0x00, metadata, sizeof(metadata));
-						SX_TX(0);
+						SX_SetStandby(0x00);												// Inicia processo de transmissão
+						SX_SetPacketParamsLoRa(0x08, 0x00, sizeof(metadata), 0x01, 0x00);	// Define parametros da transmissão
+						SX_SetDioIrqParams(0x01, 0x01, 0, 0);								// Define interrupção
+						SX_SetBufferBaseAddress(0x00, 0x00);								// Define endereços no FIFO do Rádio
+						SX_WriteBuffer(0x00, metadata, sizeof(metadata));					// Escreve Buffer
+						SX_TX(0);															// Transmite
 					}
-					else
-					{
-						// verdadeiro na primeira vez que entrar aqui, em caso de solicitacao de reenvio, isso sera falso
+					else					//	      - - - --  Imagem  -- - - -
+					{	// verdadeiro na primeira vez que entrar aqui, em caso de solicitacao de reenvio, isso sera falso
 						if(!(message_repeat[0] & 0x80))
 						{
-							size = *(pBufferSPI + 2) << 8 | *(pBufferSPI + 3);
-							message_repeat[0] = 0x80 | (size/253);
-
+							size = *(pBufferSPI + 2) << 8 | *(pBufferSPI + 3);				// 'size' recebe o tamanho do pacote, normalmente é 4048 e o ultimo costuma ser menor
+							message_repeat[0] = 0x80 | (size/253);							// 'message_repeat' informa quantas mensagens são necessários transmitir (ou repetir em caso de solicitaçao de reenvio)
+																							//     se for o primeiro envio, "repita todas" (equivale a enviar todas), se for uma solicitação de retransmissão, retransmite apenas a quantidade solicitada
 							resto = size % 253;
-							if(resto)
+							if(resto)														// Normalmente o ultimo pacote não tem tamanho multiplo de 253, então vai sobrar um 'resto' de bytes para ser transmitidos
 							{
-								ultimo = message_repeat[0] & 0x1F;
-								message_repeat[0]++;
+								ultimo = message_repeat[0] & 0x1F;							// o ultimo pacote vai ter um tratamento especial pra não ser transmitido lixo de memória, o tamanho dele vai ser menor que 253 (255) bytes
+								message_repeat[0]++;										// soma 1 pra poder transmitir os bytes restantes
 							}
 							else
-								ultimo = 255;	// um numero grande pra exessao não ocorrer quando não deve
+								ultimo = 255;												// só um numero grande pra exessao não ocorrer quando não deve
 
-							ID = *(pBufferSPI + 0) << 8 | *(pBufferSPI + 1);
+							ID = *(pBufferSPI + 0) << 8 | *(pBufferSPI + 1);				// ID decrescente que informa quantos pacotes de 4048 ainda faltam
 							FbImg.parameter[0] = 'I'; FbImg.parameter[1] = 'D'; FbImg.parameter[2] = 0x30 | (0xF & ID);
 						}
 
-						// HEADER		Reaproveita o espaço já alocado pra não precisar alocar mais um pedaço
-						*(pBufferSPI + 4058) = 0x55;	// Codigo de indicacao
-
+						*(pBufferSPI + 4058) = 0x50;	// Codigo de identificação			// HEADER		Reaproveita o espaço já alocado pra não precisar alocar mais um pedaço
+//					- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 						for(int i = 0; i < (message_repeat[0] & 0x1F); i++)
 						{
-							// HEADER		// Logica que separa 1 byte em 2 numeros
-							if(i%2 == 0)
-								*(pBufferSPI + 4059) = ( 0x40 | (message_repeat[1 + (i/2)] >> 4) );
-							else
+							if(i%2 == 0)													// HEADER		// Logica que separa 1 byte em 2 numeros
+								*(pBufferSPI + 4059) = ( 0x40 | (message_repeat[1 + (i/2)] >> 4) );			// Os pacotes a serem transmitidos chegam agrupados de 2 em 2 para cada byte de 'message_repeat[1~9]'
+							else																			//   essa lógica separa esses números para que possam ser transmitidos corretamente
 								*(pBufferSPI + 4059) = 0x40 | (message_repeat[1 + (i/2)] & 0x0F);
 
-							SX_SetStandby(0x00);
+							SX_SetStandby(0x00);											// Inicia procedimento de transmissão
 
-							if( (*(pBufferSPI + 4059) & 0x0F) == ultimo)					// (*(pBufferSPI + 4059) & 0x0F) é o indice da transmissão
-								SX_SetPacketParamsLoRa(0x08, 0x00, resto+2, 0x01, 0x00);
+							if( (*(pBufferSPI + 4059) & 0x0F) == ultimo)					// (*(pBufferSPI + 4059) & 0x0F) é o indice da transmissão, no dado transmitido corresponde ao 'n' em '0x4n'
+								SX_SetPacketParamsLoRa(0x08, 0x00, resto+2, 0x01, 0x00);	// se for o ultimo pacote, e ele for menor que 253, essa lógica garante que não será transmitido lixo de momória
 							else
-								SX_SetPacketParamsLoRa(0x08, 0x00, 255, 0x01, 0x00);
+								SX_SetPacketParamsLoRa(0x08, 0x00, 255, 0x01, 0x00);		// em casos normais, o pacote terá o tamanho máximo
 
 							SX_SetDioIrqParams(0x01, 0x01, 0, 0);
 							SX_SetBufferBaseAddress(0x00, 0x00);
-							SX_WriteBuffer(0x00, (pBufferSPI + 4058), 2);												// HEADER
+							SX_WriteBuffer(0x00, (pBufferSPI + 4058), 2);					// HEADER
 
 							if( (*(pBufferSPI + 4059) & 0x0F) == ultimo)
-								SX_WriteBuffer(0x02, (pBufferSPI + 4 + ( ((*(pBufferSPI + 4059)) & 0x0F) * 253 )), resto);	// PAYLOAD
+								SX_WriteBuffer(0x02, (pBufferSPI + 4 + ( ((*(pBufferSPI + 4059)) & 0x0F) * 253 )), resto);	// PAYLOAD, mesma lógica comentada acima
 							else
 								SX_WriteBuffer(0x02, (pBufferSPI + 4 + ( ((*(pBufferSPI + 4059)) & 0x0F) * 253 )), 253);	// PAYLOAD
-							SX_TX(0);
+							SX_TX(0);																						// Inicia transmissão
 
-							xTaskNotifyWait(0x00, 0xFFFFFFFF, &radioFeedback, 5000);		// Aguarda pela interrupcao TxDone
+							if( (*(pBufferSPI + 4059) & 0x0F) != ((message_repeat[0] & 0x1F)-1) )	// Se não for o ultimo pacote a ser transmitido,
+								xTaskNotifyWait(0x00, 0xFFFFFFFF, &radioFeedback, 5000);			//   aguarda pela interrupcao TxDone aqui mesmo, se não, a interrupção vai ser tradada normalmente no estado de suspensão
 						}
 					}
 				}
-											//	=-=-=-=-=  TELEMETRIA  =-=-=-=-=
-				else
+				else						//		=-=-=-=-=  TELEMETRIA  =-=-=-=-=
 				{
-					// configura para transmissão do feedback -> transmite -> suspende
 					sprintf( (char*)payload, "U%.3d|", contador);							// Mensagem que será enviada
-					if(++contador >= 1000)
+					if(++contador >= 1000)													// Contador de envios
 						contador = 0;
 
-					for(int i = 0, j = 0; j < 3; i = i + 6, j++)							// Adiciona todos os feedbacks na mensagem
-					{
-						payload[5+i] = pArrayFeedback[j]->ID_Task[0];
+					for(int i = 0, j = 0; j < 3; i = i + 6, j++)							// Adiciona todos os feedbacks das outras Tasks na mensagem de telemetria
+					{																		// j < 'x' , onde 'x' é a quantidade de feedbacks para serem transmitido
+						payload[5+i] = pArrayFeedback[j]->ID_Task[0];						// A ordem de envio depende da ordem em que estão declarados no Array
 						payload[6+i] = pArrayFeedback[j]->ID_Task[1];
 						payload[7+i] = pArrayFeedback[j]->parameter[0];
 						payload[8+i] = pArrayFeedback[j]->parameter[1];
@@ -983,25 +997,24 @@ void vTaskRadio( void * pvParameters )
 					}
 					payload[39] = '\n';
 
-					SX_SetStandby(0x00);
-					SX_SetPacketParamsLoRa(0x08, 0x00, 40, 0x01, 0x00);						/* Define os parametros do packet */
-					SX_SetDioIrqParams(0x01, 0x01, 0, 0);									/* Configura interrupção TX Done */
-					SX_SetBufferBaseAddress(0x00, 0x00);									/* Radio Buffer Base Address */
-					SX_WriteBuffer(0x00, (uint8_t *) payload, 40);							/* Escreve a mensagem no buffer */
-					SX_TX(0);																/* Transmite a mensagem que estava no buffer */
+					SX_SetStandby(0x00);													// Procedimento de envio
+					SX_SetPacketParamsLoRa(0x08, 0x00, 40, 0x01, 0x00);
+					SX_SetDioIrqParams(0x01, 0x01, 0, 0);
+					SX_SetBufferBaseAddress(0x00, 0x00);
+					SX_WriteBuffer(0x00, (uint8_t *) payload, 40);
+					SX_TX(0);
 				}
-				state = suspend;
+				state = suspend;															// Vai para o estado suspenso enquanto aguarda TxDone
 				break;
 //----------------------------------------------------------------------------------------------------------------------------------
-			case screening:		// Identifica qual atitude tomar, mediante a informacao que chegou
-
-				SX_GetRxBufferStatus(&status, &PayloadLengthRx, &RxStartBufferPointer);
+			case screening:																	// Identifica qual atitude tomar, mediante a informacao que chegou
+				SX_GetRxBufferStatus(&status, &PayloadLengthRx, &RxStartBufferPointer);		// Recebe a mensagem do buffer do Radio
 				SX_ReadBuffer(&pRadioBuffer, RxStartBufferPointer, PayloadLengthRx - RxStartBufferPointer);
 
-				if(*pRadioBuffer == 0x55)												// Funciona como um ID do radio
+				if(*pRadioBuffer == 0x55)							// Serve para separar as mensagem espúrias, funciona como o 'nome' do receptor
 				{
-					state = transmit;
-					switch(*(pRadioBuffer+1))											// ID da operacao
+					state = transmit;								// caso o comando não necessite de um estado diferente, o proximo estado normalmente é o de transmissão, para enviar um feedback
+					switch(*(pRadioBuffer+1))						// ID do comando
 					{
 						case 0x50:		// Deploy Antena
 							FbRadio.parameter[0] = 'D';	FbRadio.parameter[1] = 'P';	FbRadio.parameter[2] = 'L';
@@ -1012,15 +1025,16 @@ void vTaskRadio( void * pvParameters )
 							flag_metadada = 1;
 							xTaskNotify(xHandleImage, SUSPEND, eSetValueWithOverwrite);
 							vTaskResume(xHandleImage);
+							state = suspend;
 							break;
 
-						case 0x47:
+						case 0x47:		// Repetir o metadado
 							FbRadio.parameter[0] = 'M';	FbRadio.parameter[1] = 'S';	FbRadio.parameter[2] = 'D';
 							flag_metadada = 1;
 							xSemaphoreGive(xSemBinSendImage);
 							break;
 
-						case 0x48:
+						case 0x48:		// Iniciar transmissão da imagem
 							FbRadio.parameter[0] = 'I';	FbRadio.parameter[1] = 'S';	FbRadio.parameter[2] = 'D';
 							message_repeat[0] = 16;
 							message_repeat[1] = 0x01;
@@ -1034,7 +1048,7 @@ void vTaskRadio( void * pvParameters )
 							xSemaphoreGive(xSemBinSendImage);
 							break;
 
-						case 0x49:
+						case 0x49:		// Repetir um pacote especifico da imagem
 							FbRadio.parameter[0] = 'R';	FbRadio.parameter[1] = 'P';	FbRadio.parameter[2] = 'T';
 							message_repeat[0] = *(pRadioBuffer+2) | (message_repeat[0] & 0x80);
 							message_repeat[1] = *(pRadioBuffer+3);
@@ -1048,7 +1062,7 @@ void vTaskRadio( void * pvParameters )
 							xSemaphoreGive(xSemBinSendImage);
 							break;
 
-						case 0x4A:
+						case 0x4A:		// Prosseguir com o envio (todos os pacotes anteriores foram recebidos sem falha)
 							FbRadio.parameter[0] = 'N';	FbRadio.parameter[1] = 'X';	FbRadio.parameter[2] = 'T';
 							message_repeat[0] = 16;
 							message_repeat[1] = 0x01;
@@ -1063,39 +1077,19 @@ void vTaskRadio( void * pvParameters )
 							vTaskResume(xHandleImage);
 							break;
 
-						default:
+						default:		// Recebeu um comando que não está configurado
 							FbRadio.parameter[0] = 'S';	FbRadio.parameter[1] = 'H';	FbRadio.parameter[2] = 'T';
 							break;
 					}
 				}
 				else
 				{
-					state = receive;				// Se a mensagem não era para o cubeSat, volte para o modo de recebimento
+					state = receive;				// Se a mensagem não era para este Radio, volte para o modo de recebimento
 				}
 				break;
 		}
 //----------------------------------------------------------------------------------------------------------------------------------
 	}
-}
-
-void HAL_SPI_RxCpltCallback (SPI_HandleTypeDef * hspi)
-{
-	static BaseType_t xHigherPriorityTaskWoken;
-	xHigherPriorityTaskWoken = pdFALSE;
-
-	xSemaphoreGiveFromISR(xSemBinSPI, &xHigherPriorityTaskWoken);
-
-	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-}
-
-void HAL_UART_RxCpltCallback (UART_HandleTypeDef * huart)
-{
-	static BaseType_t xHigherPriorityTaskWoken;
-	xHigherPriorityTaskWoken = pdFALSE;
-
-	xSemaphoreGiveFromISR(xSemBinUART, &xHigherPriorityTaskWoken);
-
-	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
 void vTaskImage( void * pvParameters )
@@ -1121,6 +1115,7 @@ void vTaskImage( void * pvParameters )
 	// HAL status
 	HAL_StatusTypeDef status_UART_TX = 0, status_UART_RX = 0, status_SPI_RX = 0;
 	_Bool flag_UART_Error = 0, flag_SPI_Error = 0;
+	uint8_t errCount = 0;
 
 	// Semaphore Create
 	xSemBinUART = xSemaphoreCreateBinary();
@@ -1242,6 +1237,9 @@ void vTaskImage( void * pvParameters )
 				{
 					// A comunicacao UART entre STM e RPi falhou, o comando foi corrompido
 
+					FbImg.parameter[0] = 'F';	FbImg.parameter[1] = 'U';	FbImg.parameter[2] = 'K';
+					state = suspend;
+
 					if(status_UART_RX)
 					{
 
@@ -1259,6 +1257,13 @@ void vTaskImage( void * pvParameters )
 				if(flag_SPI_Error)
 				{
 					// tenta novamente mais 2x, isso foi causado por falha no CRC, está relacionado com a integridade do pacote enviado pelo RPi
+					if(errCount++ > 3)
+					{
+						errCount = 0;
+						FbImg.parameter[0] = 'F';	FbImg.parameter[1] = 'U';	FbImg.parameter[2] = 'K';
+						state = suspend;
+					}
+
 					flag_SPI_Error = 0;
 					ImgAction = SEND;
 					state = uart;
@@ -1277,6 +1282,7 @@ void vTaskImage( void * pvParameters )
 						// CRC OK
 						FbImg.parameter[0] = 'C';	FbImg.parameter[1] = 'R';	FbImg.parameter[2] = 'C';
 						xSemaphoreGive(xSemBinSendImage);
+						xTaskNotify(xHandleRadio, 0x0B, eSetValueWithOverwrite);
 						state = suspend;
 					}
 					else
@@ -1314,7 +1320,7 @@ void vTaskDeploy( void * pvParameters )
 {
 	/*			SEQUENCIA DE FUNCIONAMENTO
 	 *
-	 * 		1. Aciona Heater
+	 * 		1. Aciona o resistor de aquecimento
 	 * 		2. Aguarda (timer ou switch) (libera task)
 	 * 		3. Desliga Heater
 	 * 		4. Coloca o resultado numa Queue
@@ -1326,24 +1332,31 @@ void vTaskDeploy( void * pvParameters )
 	uxHighWaterMarkDeploy = uxTaskGetStackHighWaterMark( NULL );
 
 	FbDpl.ID_Task[0] = 'D'; 		FbDpl.ID_Task[1] = 'P';
-	FbDpl.parameter[0] = FOLDED;	FbDpl.parameter[1] = ' ';		FbDpl.parameter[2] = ' ';
+	FbDpl.parameter[0] = 'C';	FbDpl.parameter[1] = ' ';		FbDpl.parameter[2] = ' ';
 
-	/* Fica suspensa até o momento do deploy ocorrer */
+	uint16_t tempo_ligado = 1000;
+	uint8_t status_deploy = FOLDED;
+
+	// Fica suspensa até o momento do deploy ser solicitado
 	vTaskSuspend(xHandleDeploy);
 
 	for(;;)
 	{
-		if(FbDpl.parameter[0] != FULLY_DEPLOYED)
+		if(status_deploy != FULLY_DEPLOYED)																// se não está aberto
 		{
-			FbDpl.parameter[0] = DEPLOYING;
+			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);									// Liga elemento de aquecimento
+			status_deploy = DEPLOYING;	FbDpl.parameter[0] = 'W';										// atualiza status para abrindo
+			xTaskNotifyWait(0x00, 0xFFFFFFFF, (uint32_t *) &status_deploy, tempo_ligado);				// Aguarda um certo tempo
 
-			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);	// Start Heater
-			osDelay(10000);												// wait
-			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);	// Stop Heater
+			if(status_deploy == 3) {																	// Atualizado via interrupção externa
+				FbDpl.parameter[0] = 'S'; }																// sucesso, aberto
+			else {
+				status_deploy = NOT_DEPLOYED;	FbDpl.parameter[0] = 'F'; }											// falhou, continua fechado
 
-			if(FbDpl.parameter[0] == DEPLOYING)
-				FbDpl.parameter[0] = NOT_DEPLOYED;
+			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);									// Desliga elemento de aquecimento
 		}
+//		else
+//			vTaskDelete(xHandleDeploy);				// Deleta a task
 
 		uxHighWaterMarkDeploy = uxTaskGetStackHighWaterMark( NULL );
 		vTaskSuspend(xHandleDeploy);
