@@ -5,16 +5,19 @@ from time import sleep
 from picamera import PiCamera
 import os
 import zlib
-
+# -----------------------------
+#  -=-== STATE MACHINE ==-=-
 
 CONFIG 	 = b'\x00'
-FINISH 	 = b'\xFF'
-SUSPEND  = b'\x55'
 PICTURE  = b'\x0F'
 SEND 	 = b'\xC3'
 CONTINUE = b'\xA5'
+SUSPEND  = b'\x55'
+FINISH 	 = b'\xFF'
+SHUTDOWN = b'\xF4'
 
 state = CONFIG
+# -----------------------------
 
 while 1:
 # ----------------------------------------------------------------------------------------------------------------------
@@ -22,9 +25,9 @@ while 1:
 
 		print("---=-=-= INITIAL CONFIGURATION =-=-=---")
 
-		# camera = PiCamera()
-		# camera.resolution = (1024, 768)
-		# camera.rotation = 180
+#		camera = PiCamera()
+#		camera.resolution = (1024, 768)
+#		camera.rotation = 180
 
 		# Enable SPI
 		spi = spidev.SpiDev()
@@ -40,32 +43,16 @@ while 1:
 
 		state = SUSPEND
 # ----------------------------------------------------------------------------------------------------------------------
-	elif state == FINISH:
-		# close port
-		uart.close()
-		spi.close()
-		# camera.close()
-		my_file.close()
-
-		print("THE END")  # DEBUG
-# ----------------------------------------------------------------------------------------------------------------------
-	elif state == SUSPEND:
-		print("---=-=-=  ATIVIDADE SUSPENSA  =-=-=---")
-		state = uart.read(1)
-		uart.write(state)
-# ----------------------------------------------------------------------------------------------------------------------
 	elif state == PICTURE:
 		print("---=-=-= TAKE PICTURE =-=-=---")
 		# Camera capture
-		# camera.capture("my_image.jpg")
-
-		state = uart.read(1)
-		uart.write(state)
+		# camera.capture("/home/pi/SmashBoy/my_image.jpg")
+		state = SUSPEND
 # ----------------------------------------------------------------------------------------------------------------------
 	elif state == SEND:
 		print("---=-=-= SEND PICTURE =-=-=---")
 
-		my_file = open("pluto128.jpg", "rb")
+		my_file = open("/home/pi/SmashBoy/pluto128.jpg", "rb")
 
 		my_file.seek(0, os.SEEK_END)
 		size = my_file.tell()  						# File size calculator
@@ -79,6 +66,8 @@ while 1:
 
 		loraPyldArray = 253 * 16  					# 253 Bytes = Payload LoRa, 253*16 = 4048 Bytes Payload Buffer STM32
 		ID = int( size / loraPyldArray )
+
+		state = SUSPEND							# Default state
 
 		for i in range(ID):
 			list_bytes = list(my_file.read(loraPyldArray))		# Payload (image)
@@ -104,8 +93,8 @@ while 1:
 			status = SEND
 			while(SEND == status):
 				spi.writebytes(list_bytes)  			# SPI Write payload
-				status = uart.read(1)
-				uart.write(status)
+				status = uart.read(1)				# Aguarda feedback, if != SEND, CONTINUE
+				uart.write(status)				# echo
 
 			if(status == SUSPEND):
 				state = SUSPEND
@@ -144,8 +133,28 @@ while 1:
 					spi.writebytes(list_bytes)  		# SPI Write payload
 					status = uart.read(1)
 					uart.write(status)
-
-
+# ----------------------------------------------------------------------------------------------------------------------
+	elif state == SUSPEND:
+		print("---=-=-=  ATIVIDADE SUSPENSA  =-=-=---")
+		state = uart.read(1)
+		uart.write(state)
+#		state = input()
+# ----------------------------------------------------------------------------------------------------------------------
+	elif state == FINISH:
+		# close port
+		uart.close()
+		spi.close()
+#		camera.close()
+		my_file.close()
+		print("THE END")  # DEBUG
+		state = SUSPEND
+# ----------------------------------------------------------------------------------------------------------------------
+	elif state == SHUTDOWN:
+		os.system("shutdown now -h")
+		uart.close()
+		spi.close()
+#		camera.close()
+		my_file.close()
 		state = SUSPEND
 # ----------------------------------------------------------------------------------------------------------------------
 	else:
