@@ -696,6 +696,31 @@ static void MX_GPIO_Init(void)
 // ---------------------------------------------------------------------------------------------
 // ---------------------------------------------------------------------------------------------
 
+void HAL_SPI_ErrorCallback (SPI_HandleTypeDef * hspi)
+{
+
+}
+
+void HAL_SPI_AbortCpltCallback (SPI_HandleTypeDef * hspi)
+{
+	static BaseType_t xHigherPriorityTaskWoken;
+	xHigherPriorityTaskWoken = pdFALSE;
+	xTaskNotifyFromISR(xHandleImage, 0x01, eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
+	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+
+void HAL_UART_ErrorCallback (UART_HandleTypeDef * huart)
+{
+
+}
+
+void HAL_UART_AbortReceiveCpltCallback (UART_HandleTypeDef * huart)
+{
+	static BaseType_t xHigherPriorityTaskWoken;
+	xHigherPriorityTaskWoken = pdFALSE;
+	xTaskNotifyFromISR(xHandleImage, 0x01, eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
+	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
 
 void HAL_SPI_RxCpltCallback (SPI_HandleTypeDef * hspi)
 {
@@ -827,7 +852,7 @@ void vTaskRadio( void * pvParameters )
 
 	// Timer configurado em 400n para clock de 240MHz, o resultado final considera o tempo do timer + o atraso do codigo
 //	TIM7->PSC = 0x04;		// Clock prescaler
-//	TIM7->ARR = 23;		// Auto-reload register
+//	TIM7->ARR = 23;			// Auto-reload register
 
 	TIM7->SR = 0x00;		// Clear Flag Interrupt
 	TIM7->DIER |= 0x01;		// Update interrupt enable
@@ -1112,7 +1137,7 @@ void vTaskImage( void * pvParameters )
 	uint8_t ImgAction = 0;
 	uint32_t CRC32 = 0, CRC32_Calc = 0;
 
-	// HAL status
+	// Status
 	#define _OK			0
 	#define _ERR		1
 	#define U_RX		0
@@ -1122,7 +1147,7 @@ void vTaskImage( void * pvParameters )
 	#define S_CRC		1
 
 	HAL_StatusTypeDef status_UART_TX = 0, status_UART_RX = 0, status_SPI_RX = 0;
-	uint8_t errCount = 0;
+	uint8_t errCount[7] = {0,0,0,0,0,0,0};
 	_Bool flag_UART_Error[3] = {_OK,_OK,_OK} , flag_SPI_Error[2] = {_OK,_OK};
 
 	// Semaphore Create
@@ -1144,6 +1169,8 @@ void vTaskImage( void * pvParameters )
 			case suspend:
 				if(xTaskNotifyWait(0x00, 0xFFFFFFFF, (uint32_t *) &ImgAction, 0) == pdTRUE)
 				{
+					FbImg.parameter[0] = '-'; FbImg.parameter[1] = '-'; FbImg.parameter[2] = 0;	// Zera avisos de erros
+					for(int i = 0; i < sizeof(errCount); i++)	errCount[i] = 0;				// Zera toda a contagem de erros
 					state = uart;
 				}
 				else
@@ -1151,27 +1178,6 @@ void vTaskImage( void * pvParameters )
 					uxHighWaterMarkImage = uxTaskGetStackHighWaterMark( NULL );
 					vTaskSuspend(xHandleImage);
 				}
-				break;
-//----------------------------------------------------------------------------------------------------------------------------------
-			case timeout:
-				state = suspend;
-
-				if(flag_UART_Error[U_RX])														// Não houve eco, o codigo (ou o RPi) pode estar travado ou fechado
-				{
-					flag_UART_Error[U_RX] = _OK;												// Clear flag
-					// cancela recebimento
-					// envia feedback
-					// tenta novamente ??
-				}
-
-				if(flag_SPI_Error[S_IT])														// SPI não recebeu nada
-				{
-					flag_SPI_Error[S_IT] = _OK;													// Clear flag
-					// cancela recebimento
-					// envia feedback
-					// tenta novamente ??
-				}
-
 				break;
 //----------------------------------------------------------------------------------------------------------------------------------
 			case uart:																			// UART TX (2.1)
@@ -1197,17 +1203,20 @@ void vTaskImage( void * pvParameters )
 						break;
 				}
 
-				if(status_UART_TX != HAL_OK) {				// HAL Feedback
-					flag_UART_Error[U_TX] = _ERR;			// UART TX ERROR
-					state = unexpected;		 }
-
-				if(status_UART_RX != HAL_OK) {
+				if(status_UART_RX != HAL_OK) {				// HAL Feedback
 					flag_UART_Error[U_RX] = _ERR;			// UART RX ERROR
-					state = unexpected;		 }
+					state = unexpected;
+					break;					 }
+
+				if(status_UART_TX != HAL_OK) {
+					flag_UART_Error[U_TX] = _ERR;			// UART TX ERROR
+					state = unexpected;
+					break;					 }
 
 				if(status_SPI_RX != HAL_OK)	{
 					flag_SPI_Error[S_IT] = _ERR;			// SPI RX ERROR
-					state = unexpected; 	}
+					state = unexpected;
+					break;					}
 
 				// UART RX (2.2)
 				if(xSemaphoreTake(xSemBinUART, 15) == pdTRUE)
@@ -1241,44 +1250,7 @@ void vTaskImage( void * pvParameters )
 						break;
 				}
 				break;
-//----------------------------------------------------------------------------------------------------------------------------------
-			case unexpected:
-				state = suspend;															// Por padrão vai para o modo suspenso
 
-				if(flag_UART_Error[U_TX])
-				{
-					flag_UART_Error[U_TX] = _OK;											// Clear flag
-					FbImg.parameter[0] = 'A';												// Prepara feedback
-				}
-				if(flag_UART_Error[U_RX])
-				{
-					flag_UART_Error[U_RX] = _OK;											// Clear flag
-					FbImg.parameter[0] = 'B';												// Prepara feedback
-				}
-				if(flag_SPI_Error[S_IT])
-				{
-					flag_SPI_Error[S_IT] = _OK;												// Clear flag
-					FbImg.parameter[0] = 'C';												// Prepara feedback
-				}
-				if(flag_UART_Error[U_ECHO])
-				{
-					flag_UART_Error[U_ECHO] = _OK;											// Clear flag
-					FbImg.parameter[0] = 'D';												// Prepara feedback
-				}
-				if(flag_SPI_Error[S_CRC])
-				{
-					flag_SPI_Error[S_CRC] = _OK;											// Clear flag
-					ImgAction = SEND;														// Prepara para nova tentativa de recebimento
-					state = uart;
-
-					if(errCount++ > 3)														// Tenta novamente mais 2x
-					{
-						errCount = 0;														// Zera contagemd e erros
-						FbImg.parameter[0] = 'E';											// Prepara feedback, não foi possivel obter uma mensagem sem erros
-						state = suspend;													// Suspende operação
-					}
-				}
-				break;
 //----------------------------------------------------------------------------------------------------------------------------------
 			case spi:
 				if(xSemaphoreTake(xSemBinSPI, 1000) == pdTRUE)
@@ -1286,15 +1258,15 @@ void vTaskImage( void * pvParameters )
 					CRC32 = *(pBufferSPI + 4056) << 24 | *(pBufferSPI + 4057) << 16 | *(pBufferSPI + 4058) << 8 | *(pBufferSPI + 4059);
 					CRC32_Calc = HAL_CRC_Calculate(&hcrc, (uint32_t *) pBufferSPI, 4056) ^ 0xFFFFFFFF;
 
-					if(CRC32 == CRC32_Calc)
-					{	// CRC OK
-						FbImg.parameter[0] = 'C';	FbImg.parameter[1] = 'R';	FbImg.parameter[2] = 'C';
-						xSemaphoreGive(xSemBinSendImage);
-						xTaskNotify(xHandleRadio, 0x0B, eSetValueWithOverwrite);
+					if(CRC32 == CRC32_Calc)		// CRC OK
+					{
+						FbImg.parameter[0] = 'S';												// Informa feedback
+						xSemaphoreGive(xSemBinSendImage);										// Libera o semaforo para permitir o envio da imagem
+						xTaskNotify(xHandleRadio, 0x0B, eSetValueWithOverwrite);				// Informa a Task Radio que a imagem está pronta para ser transmitida
 						state = suspend;
 					}
-					else
-					{	// CRC ERROR
+					else						// CRC ERROR
+					{
 						flag_SPI_Error[S_CRC] = _ERR;					// CRC falhou, a mensagem transferida via SPI contem erros
 						state = unexpected;
 					}
@@ -1303,6 +1275,121 @@ void vTaskImage( void * pvParameters )
 				{
 					flag_SPI_Error[S_IT] = _ERR;						// A interrupção não ocorreu dentro do intervalo de tempo
 					state = timeout;
+				}
+				break;
+//----------------------------------------------------------------------------------------------------------------------------------
+			case unexpected:
+				// CARACTERIZAÇÃO DE PROBLEMAS: Se o problema for resolvido nesse procedimento, ele se torna um AVISO de erro,
+				//								Se o problema NÃO for resolvido ele se torna um ERRO e o programa entra em suspensão
+
+				state = suspend;																// Por padrão vai para o modo suspenso
+
+				if(flag_UART_Error[U_RX])														// Causado por: 'status_UART_RX != HAL_OK', indica problema no envio do comando via UART
+				{																				// Possivel causador do problema: HAL_BUSY, Possivel solução: Aguardar e tentar novamente
+					flag_UART_Error[U_RX] = _OK;												// Clear flag
+					FbImg.parameter[2] |= 0x01;													// cria warning
+					osDelay(5);
+					state = uart;
+
+					if(errCount[0]++ > 3)
+					{
+						errCount[0] = 0;
+						FbImg.parameter[1] = status_UART_RX;										// HAL Status
+						FbImg.parameter[2] |= 0x80;
+						state = suspend;
+					}
+				}
+				if(flag_UART_Error[U_TX])														// Causado por: 'status_UART_TX != HAL_OK', indica problema no envio do comando via UART
+				{																				// Possivel causador do problema: HAL_BUSY, Possivel solução: Aguardar e tentar novamente
+					flag_UART_Error[U_TX] = _OK;												// Clear flag
+					FbImg.parameter[2] |= 0x02;
+					osDelay(5);
+					state = uart;
+
+					if(errCount[1]++ > 3)
+					{
+						errCount[1] = 0;
+						FbImg.parameter[1] = status_UART_TX;										// HAL Status
+						FbImg.parameter[2] |= 0x80;
+						state = suspend;
+					}
+				}
+				if(flag_SPI_Error[S_IT])														// Causado por: 'status_SPI_RX != HAL_OK', indica problema no envio do comando via UART
+				{																				// Possivel causador do problema: HAL_BUSY, Possivel solução: Aguardar e tentar novamente
+					flag_SPI_Error[S_IT] = _OK;													// Clear flag
+					FbImg.parameter[2] |= 0x04;
+					osDelay(5);
+					state = uart;
+
+					if(errCount[2]++ > 3)
+					{
+						errCount[2] = 0;
+						FbImg.parameter[1] = status_SPI_RX;										// HAL Status
+						FbImg.parameter[2] |= 0x80;
+						state = suspend;
+					}
+				}
+				if(flag_UART_Error[U_ECHO])														// Causado pelo RPi, o comando enviado por UART que chegou foi diferente do que foi solicitado
+				{																				// Possivel causa: falha de comunicação, Possivel solução: tentar novamente
+					flag_UART_Error[U_ECHO] = _OK;												// Clear flag
+					FbImg.parameter[2] |= 0x08;
+					state = uart;
+
+					if(errCount[3]++ > 3)
+					{
+						errCount[3] = 0;
+						FbImg.parameter[1] = feedbackUART;										// O que chegou de eco
+						FbImg.parameter[2] |= 0x80;
+						state = suspend;
+					}
+				}
+				if(flag_SPI_Error[S_CRC])														// CRC ERROR, Causado pela transferencia de dados via SPI
+				{
+					flag_SPI_Error[S_CRC] = _OK;												// Clear flag
+					ImgAction = SEND;															// Prepara para nova tentativa de recebimento, comando SEND é usado tambem para repetir o pacote
+					FbImg.parameter[2] |= 0x10;
+					state = uart;
+
+					if(errCount[4]++ > 3)														// Tenta novamente mais 2x
+					{
+						errCount[4] = 0;														// Zera contagem de erros
+						FbImg.parameter[2] |= 0x80;												// Prepara feedback, não foi possivel obter uma mensagem sem erros
+						state = suspend;														// Suspende operação
+					}
+				}
+				break;
+//----------------------------------------------------------------------------------------------------------------------------------
+			case timeout:
+				state = uart;																	// Default state
+
+				if(flag_UART_Error[U_RX])														// Não houve eco, o codigo (ou o RPi) pode estar travado ou fechado
+				{
+					flag_UART_Error[U_RX] = _OK;												// Clear flag
+					FbImg.parameter[2] |= 0x20;
+					HAL_UART_AbortReceive_IT(&huart1);											// Cancela recebimento
+					_Bool temp;  xTaskNotifyWait(0x00, 0xFFFFFFFF, (uint32_t *) &temp, 15);		// Aguarda pelo AbortCallback
+
+					if(errCount[5]++ > 3)
+					{
+						errCount[5] = 0;
+						FbImg.parameter[2] |= 0x80;
+						state = suspend;
+					}
+				}
+				if(flag_SPI_Error[S_IT])														// SPI não recebeu nada
+				{
+					flag_SPI_Error[S_IT] = _OK;													// Clear flag
+					FbImg.parameter[2] |= 0x40;
+					HAL_SPI_Abort_IT(&hspi3);													// Cancela recebimento
+					_Bool temp;  xTaskNotifyWait(0x00, 0xFFFFFFFF, (uint32_t *) &temp, 15);		// Aguarda pelo AbortCallback
+					ImgAction = SEND;															// Solicita reenvio da mensagem
+
+					if(errCount[6]++ > 3)
+					{
+						errCount[6] = 0;
+						FbImg.parameter[2] |= 0x80;
+						state = suspend;
+					}
 				}
 				break;
 		}
