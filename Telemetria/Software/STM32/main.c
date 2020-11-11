@@ -248,19 +248,7 @@ int main(void)
     	  configASSERT(0);
       }
       // -----------------------------------------------------------------------------
-//      xTimerRTOS = xTimerCreate
-//						   (
-//							 "TimerRTOS",	/* Just a text name, not used by the RTOS kernel. */
-//							 50000,			/* The timer period in ticks, must be greater than 0. */
-//							 pdFALSE,		/* The timers will auto-reload themselves when they expire. */
-//							 ( void * ) 0,	/* The ID is used to store a count of the number of times the timer has expired, which is initialised to 0. */
-//							 vTimerCallback	/* Each timer calls the same callback when it expires. */
-//						   );
-//
-//    if( xTimerRTOS == NULL )
-//	{
-//    	configASSERT(0);					/* The timer was not created. */
-//	}
+
     // -----------------------------------------------------------------------------
     // -----------------------------------------------------------------------------
 
@@ -284,7 +272,6 @@ int main(void)
 
   /* Create the thread(s) */
   /* definition and creation of standbyTask */
-
 
   /* USER CODE BEGIN RTOS_THREADS */
 
@@ -677,16 +664,16 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(DIO2_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI0_IRQn, 7, 0);
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 6, 0);
   HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 
   HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 7, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 7, 0);
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 6, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 }
@@ -812,7 +799,7 @@ void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin)
 void vTaskRadio( void * pvParameters )
 {
 	// Desenvolvimento
-	UBaseType_t uxHighWaterMarkRadio;
+	static UBaseType_t uxHighWaterMarkRadio;
 	uxHighWaterMarkRadio = uxTaskGetStackHighWaterMark( NULL );
 
 	// Feedback
@@ -1043,6 +1030,7 @@ void vTaskRadio( void * pvParameters )
 					{
 						case 0x50:		// Deploy Antena
 							FbRadio.parameter[0] = 'D';	FbRadio.parameter[1] = 'P';	FbRadio.parameter[2] = 'L';
+							vTaskResume(xHandleDeploy);
 							break;
 
 						case 0x46:		// Procedimento para enviar imagem (metadado)
@@ -1054,13 +1042,13 @@ void vTaskRadio( void * pvParameters )
 							break;
 
 						case 0x47:		// Repetir o metadado
-							FbRadio.parameter[0] = 'M';	FbRadio.parameter[1] = 'S';	FbRadio.parameter[2] = 'D';
+							FbRadio.parameter[0] = 'M';	FbRadio.parameter[1] = 'T';	FbRadio.parameter[2] = 'D';
 							flag_metadada = 1;
 							xSemaphoreGive(xSemBinSendImage);
 							break;
 
 						case 0x48:		// Iniciar transmissão da imagem
-							FbRadio.parameter[0] = 'I';	FbRadio.parameter[1] = 'S';	FbRadio.parameter[2] = 'D';
+							FbRadio.parameter[0] = 'I';	FbRadio.parameter[1] = 'T';	FbRadio.parameter[2] = 'X';
 							message_repeat[0] = 16;
 							message_repeat[1] = 0x01;
 							message_repeat[2] = 0x23;
@@ -1074,7 +1062,7 @@ void vTaskRadio( void * pvParameters )
 							break;
 
 						case 0x49:		// Repetir um pacote especifico da imagem
-							FbRadio.parameter[0] = 'R';	FbRadio.parameter[1] = 'P';	FbRadio.parameter[2] = 'T';
+							FbRadio.parameter[0] = 'R';	FbRadio.parameter[1] = 'T';	FbRadio.parameter[2] = 'X';
 							message_repeat[0] = *(pRadioBuffer+2) | (message_repeat[0] & 0x80);
 							message_repeat[1] = *(pRadioBuffer+3);
 							message_repeat[2] = *(pRadioBuffer+4);
@@ -1119,7 +1107,7 @@ void vTaskRadio( void * pvParameters )
 
 void vTaskImage( void * pvParameters )
 {
-	UBaseType_t uxHighWaterMarkImage;
+	static UBaseType_t uxHighWaterMarkImage;
 	uxHighWaterMarkImage = uxTaskGetStackHighWaterMark( NULL );
 
 	// Feedback
@@ -1412,49 +1400,38 @@ void vTaskControl( void * pvParameters )
 
 void vTaskDeploy( void * pvParameters )
 {
-	/*			SEQUENCIA DE FUNCIONAMENTO
-	 *
-	 * 		1. Aciona o resistor de aquecimento
-	 * 		2. Aguarda (timer ou switch) (libera task)
-	 * 		3. Desliga Heater
-	 * 		4. Coloca o resultado numa Queue
-	 * 		5. Se o resultado foi positivo, apague a task, se não, suspenda e rearme
-	 *
-	 */
-
-	UBaseType_t uxHighWaterMarkDeploy;
+	static UBaseType_t uxHighWaterMarkDeploy;
 	uxHighWaterMarkDeploy = uxTaskGetStackHighWaterMark( NULL );
 
 	FbDpl.ID_Task[0] = 'D'; 		FbDpl.ID_Task[1] = 'P';
-	FbDpl.parameter[0] = 'C';	FbDpl.parameter[1] = ' ';		FbDpl.parameter[2] = ' ';
+	FbDpl.parameter[0] = '0';	FbDpl.parameter[1] = ' ';		FbDpl.parameter[2] = ' ';
 
-	uint16_t tempo_ligado = 1000;
-	uint8_t status_deploy = FOLDED;
+	static uint16_t tempo_ligado = 5000;
+	static uint8_t status_deploy = FOLDED;
 
-	// Fica suspensa até o momento do deploy ser solicitado
-	vTaskSuspend(xHandleDeploy);
-
+	vTaskSuspend(xHandleDeploy);																// Fica suspensa até o momento do deploy ser solicitado
 	for(;;)
 	{
-		if(status_deploy != FULLY_DEPLOYED)																// se não está aberto
+		if(status_deploy != FULLY_DEPLOYED)
 		{
-			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);									// Liga elemento de aquecimento
-			status_deploy = DEPLOYING;	FbDpl.parameter[0] = 'W';										// atualiza status para abrindo
-			xTaskNotifyWait(0x00, 0xFFFFFFFF, (uint32_t *) &status_deploy, tempo_ligado);				// Aguarda um certo tempo
+			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);							// Liga elemento de aquecimento
+			status_deploy = DEPLOYING;
+			FbDpl.parameter[0] = '1';
+			xTaskNotifyWait(0x00, 0xFFFFFFFF, (uint32_t *) &status_deploy, tempo_ligado);		// Mantem ligado por algum tempo
 
-			if(status_deploy == 3) {																	// Atualizado via interrupção externa
-				FbDpl.parameter[0] = 'S'; }																// sucesso, aberto
+			if(status_deploy == FULLY_DEPLOYED) {												// Atualizado via interrupção externa
+				FbDpl.parameter[0] = '3'; }														// Sucesso, aberto
 			else {
-				status_deploy = NOT_DEPLOYED;	FbDpl.parameter[0] = 'F'; }											// falhou, continua fechado
+				status_deploy = NOT_DEPLOYED;													// Falhou
+				FbDpl.parameter[0] = '2'; }
 
-			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);									// Desliga elemento de aquecimento
+			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);							// Desliga elemento de aquecimento por segurança
 		}
 //		else
 //			vTaskDelete(xHandleDeploy);				// Deleta a task
 
-		uxHighWaterMarkDeploy = uxTaskGetStackHighWaterMark( NULL );
-		vTaskSuspend(xHandleDeploy);
-
+		uxHighWaterMarkDeploy = uxTaskGetStackHighWaterMark( NULL );							// Suspende a tarefa, em caso de falha outra tentativa pode(deve) ser feita,
+		vTaskSuspend(xHandleDeploy);															//   em caso de sucesso uma nova tentativa não deve resultar em nada
 	}
 }
 
