@@ -1,3 +1,60 @@
+/*
+
+                       _---------------------------------------------------------------------------------------------------_
+                  .--¨¨              _____    __  __                 _____    _    _    ____      ____   __     __          ¨¨--_
+               ,-´                  / ____|  |  \/  |      /\       / ____|  | |  | |  |  _ \    / __ \  \ \   / /                ´-_
+             :´                    | (___    | \  / |     /  \     | (___    | |__| |  | |_) |  | |  | |  \ \_/ /                    ´.
+            /                       \___ \   | |\/| |    / /\ \     \___ \   |  __  |  |  _ <   | |  | |   \   /                       \
+           |                        ____) |  | |  | |   / ____ \    ____) |  | |  | |  | |_) |  | |__| |    | |                        |
+           |                       |_____/   |_|  |_|  /_/    \_\  \_____/   |_|  |_|  |____/    \____/     |_|                        |
+            \           __-----------------------------------------------------------------------------------------------__           /
+             \        /´                                                                                                   ´\        /
+              \      |                                                                            *                          |      /
+               \      \                                                                                                      /     /
+                \      \                                             ___.-----````       *                                  /     /
+                  \      \                   _....------:¨¨¨\````````                                  *                   /     /
+                   \      \             _.-¨¨    _.--¨¨´_.-¨\\                                                           /      /
+                    \      \       _.-¨¨   _.--¨   _.-\¨==___\\                                                         /     /
+                     \     _\-.--¨¨¨¨¨¨¨¨¨¨    _.-¨    \     \\¨¨¨====____                        , *                  /     /
+                   __--\¨¨¨  \\ \¨¨:¨¨¨¨¨¨¨\ \ \        \     \\          ¨¨¨¨---..._           *                    /      /
+                        \     \\-\´         \ \ \      _.\    _\                     ¨¨¨¨¨                          /      /
+                         \  _-´ \ \          \ \ \_.-¨¨\ _\-¨¨ \\                                                  /     /
+                         ,\¨    \ \          \ \ \     \¨       \\ . .                                     *      /     /
+                    _,-¨    \    \ \          \ \ \     \       \\ ´.´.´.¨.`.- .               *                /      /
+                 _-¨         \    \ \          \ \ \     \  _.-\¨\\¨¨::- __`.´ . ¨ ` .                         /      /
+              _-´             \   \ \          \ \ \   _.-\¨    \ \::::::::::.-´_´.´. . . .                  /      /
+           _-´                  \  \ \          \ \ \:¨    \     \ \:::::::::::::::´:-._´ .´ ´ .            /      /
+       _,-´                      \  \ \          \ \  \     \     \ \:::::::::::::::::::´.-_´ . . .       /      /
+                                  \ \ \          \ \   \     \   _\.\::::::::::::::::::::::::¨._ . ` .   /      /
+                                   \ \ \          \ \   \   _\.-¨   \\::::::::::::::::::::::::::::-_´ . `/     /
+                                     \\ \          \ \  \.-¨\        \\:::::::::::::::::::::;(¨´-¨´ ´-_´/     /
+                                      \\ \         \ \ \¨    \      _-\::::::::::::::::::::{ ´        /      /
+                                       \ \          \ \ \     \_.-¨¨  \\:;;:::::::::::::::::;        /     /
+                                        \ \         \ \  \     \ \     \\  ;;;:;;;::;;;;::;;<       /     /
+                                        \ \          \ \  \  _.-¨ \    \\     ¨  ´;´ ¨ ´;¨ ´¨     /      /
+                                         \ \          \ \ _\¨      \    \\                       /      /
+                                          \ \         \ \ \         \.-¨_\\                     /     /
+                                          \ \          \ \ \    _.-¨_.-¨,                      /     /
+                                           \ \___       \ \ \.-¨_.-´     ; ,    .   . .. . ,. /     /
+                                            \____¨¨¨¨¨¨¨¨   _.-¨,. .  ..::: . .   `          /     /
+                                                 ¨\¨¨¨¨¨\¨¨   .:: :.:.;.         ,  .       /    /
+     Orion Aerospace Design                        \     \   ¨:.:..:.;´, ´  ,     ::   ,:,/     /
+     Projeto: SmashBoy                              \     \ ´     ´`: ;.:.:..;   ;:.   ´ /     /
+                                                     \     \ .   ;,¨;..;..:::´   ¨¨´   /      /
+     Henrique Terzi Lucchetta                          \     \    >:.:.:., `,    `  ; /      /
+     henriquetlucchetta@gmail.com                       \     \  ¨,´:.:.:.;  ;  ,;:::/     /
+                                                         \     \:, ;.:.:.:.`...;.;.:/     /
+     11/2020                                              \     \, ,:.:.;..; :. :.:/     /
+                                                           \     \ .:.:.:.:.:.:. /      /
+                                                             \     \`:.:.:.:.:.:/     /
+                                                              \      \:.;.;.:./      /
+                                                               \      `-_ _ -´      /
+                                                                 \                /
+                                                                  `- _         _-´
+                                                                       `-----¨
+
+*/
+
 /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
@@ -46,6 +103,8 @@
 
 CRC_HandleTypeDef hcrc;
 
+I2C_HandleTypeDef hi2c1;
+
 SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi3;
 
@@ -81,6 +140,7 @@ static void MX_SPI1_Init(void);
 static void MX_SPI3_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM7_Init(void);
+static void MX_I2C1_Init(void);
 void StandbyTask(void const * argument);
 
 /* USER CODE BEGIN PFP */
@@ -138,6 +198,7 @@ int main(void)
   MX_SPI3_Init();
   MX_USART1_UART_Init();
   MX_TIM7_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
   // -----------------------------------------------------------------------------
   // -----------------------------------------------------------------------------
@@ -273,6 +334,7 @@ int main(void)
   /* Create the thread(s) */
   /* definition and creation of standbyTask */
 
+
   /* USER CODE BEGIN RTOS_THREADS */
 
   /* USER CODE END RTOS_THREADS */
@@ -350,7 +412,7 @@ void SystemClock_Config(void)
     Error_Handler();
   }
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_SPI3
-                              |RCC_PERIPHCLK_SPI1;
+                              |RCC_PERIPHCLK_SPI1|RCC_PERIPHCLK_I2C1;
   PeriphClkInitStruct.PLL2.PLL2M = 25;
   PeriphClkInitStruct.PLL2.PLL2N = 320;
   PeriphClkInitStruct.PLL2.PLL2P = 2;
@@ -359,8 +421,17 @@ void SystemClock_Config(void)
   PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_0;
   PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
   PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
+  PeriphClkInitStruct.PLL3.PLL3M = 25;
+  PeriphClkInitStruct.PLL3.PLL3N = 192;
+  PeriphClkInitStruct.PLL3.PLL3P = 2;
+  PeriphClkInitStruct.PLL3.PLL3Q = 4;
+  PeriphClkInitStruct.PLL3.PLL3R = 2;
+  PeriphClkInitStruct.PLL3.PLL3RGE = RCC_PLL3VCIRANGE_0;
+  PeriphClkInitStruct.PLL3.PLL3VCOSEL = RCC_PLL3VCOWIDE;
+  PeriphClkInitStruct.PLL3.PLL3FRACN = 0;
   PeriphClkInitStruct.Spi123ClockSelection = RCC_SPI123CLKSOURCE_PLL2;
   PeriphClkInitStruct.Usart16ClockSelection = RCC_USART16CLKSOURCE_D2PCLK2;
+  PeriphClkInitStruct.I2c123ClockSelection = RCC_I2C123CLKSOURCE_PLL3;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -398,6 +469,52 @@ static void MX_CRC_Init(void)
   /* USER CODE BEGIN CRC_Init 2 */
 
   /* USER CODE END CRC_Init 2 */
+
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.Timing = 0x10B0DCFB;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
 
 }
 
