@@ -2,7 +2,7 @@
 
 Todo o sistema passou por uma grande mudança, todo o código foi reescrito e toda sua lógica reformulada.
 
-'Fluxograma RTOS V2' trás uma reestruturação das tasks, onde agora apenas uma única task pode acessar o 
+'Fluxograma RTOS V3' trás uma reestruturação das tasks, onde agora apenas uma única task pode acessar o 
  módulo de rádio, isso reduziu drasticamente a complexidade além da redução de memória e probabilidade
  de falhas/erros.
  
