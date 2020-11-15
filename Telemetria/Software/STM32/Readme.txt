@@ -33,15 +33,3 @@ O rádio se encontrará na maior parte do tempo em RX mode, assim que uma nova m
  task 1 para o envio dos dados, a imagem será enviada assim que o comando for recebido. As demais tasks 
  são autoexplicativas.
  [DESATUALIZADO] [DESATUALIZADO] [DESATUALIZADO] 
-
-(#ATUALIZAR#)
-Algoritmo de deploy: Um comando chega por RF ao módulo de rádio que estará em modo de recebimento, 
- ocorre uma interrupção no microcontrolador (cubeSat), a leitura e triagem da informação. O sistema 
- operacional identifica que o comando é referente a abertura da antena e executa a task correspondente. 
- Um ACK (acknowledge) é retornado como feedback informando para a estação que o cubeSat entendeu o 
- comando, em seguida o elemento de aquecimento e um timer de segurança são acionados, caso o elemento 
- de aquecimento falhe e não libere a antena, o timer impede que ele continue funcionando por um tempo 
- indeterminado (é necessário haver uma forma de detectar que o deploy da antena teve sucesso, com um 
- switch por exemplo). Em seguida, ocorrendo o deploy ou o estouro do timer, uma mensagem de feedback 
- da situação é enviada para a base para informar o estado. Em caso de sucesso, a task é deletada para 
- liberar memória, em caso de falha, ela pode ser tentada novamente.
