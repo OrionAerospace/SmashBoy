@@ -1,5 +1,4 @@
 /*
-
                        _---------------------------------------------------------------------------------------------------_
                   .--¨¨              _____    __  __                 _____    _    _    ____      ____   __     __          ¨¨--_
                ,-´                  / ____|  |  \/  |      /\       / ____|  | |  | |  |  _ \    / __ \  \ \   / /                ´-_
@@ -11,11 +10,11 @@
              \        /´                                                                                                   ´\        /
               \      |                                                                            *                          |      /
                \      \                                                                                                      /     /
-                \      \                                             ___.-----````       *                                  /     /
-                  \      \                   _....------:¨¨¨\````````                                  *                  /     /
-                   \      \             _.-¨¨    _.--¨¨´_.-¨\\                                                           /     /
-                    \      \       _.-¨¨   _.--¨   _.-\¨--___\\                                                         /     /
-                     \     _\-.--¨¨¨¨¨¨¨¨¨¨    _.-¨    \     \\¨¨¨----____                        , *                  /     /
+                \      \                                            ____.-----¨¨¨¨       *                                  /     /
+                  \      \                   _....------:-¨\´¨¨¨¨¨¨¨                                   *                  /     /
+                   \      \             _.-¨¨       _.-¨_:-¨\\                                                           /     /
+                    \      \       _.-¨¨        _-¨_.-\¨--___\\                                                         /     /
+                     \     _\-.--¨¨----------¨¨_.-¨    \     \\¨¨¨----____                        , *                  /     /
                    __--\¨¨¨  \\ \¨¨:¨¨¨¨¨¨¨\ \ \        \     \\          ¨¨¨¨---..._           *                    /     /
                         \     \\-\´         \ \ \      _.\    _\                     ¨¨¨¨¨                          /     /
                          \  _-´\\ \          \ \ \_.-¨¨\ _\-¨¨ \\                                                  /     /
@@ -26,9 +25,9 @@
            _-´                  \  \ \          \ \ \:¨    \     \ \:::::::::::::::´:-._´ .´ ´ .            /      /     888     888 888d888 888  .d88b.  88888b.
        _,-´                      \  \ \          \ \  \     \     \ \:::::::::::::::::::´.-_´ . . .        /      /      888     888 888P"   888 d88""88b 888 "88b
                                   \ \ \          \ \   \     \   _\.\::::::::::::::::::::::::¨._ . ` .   /      /        888     888 888     888 888  888 888  888
-                                   \ \ \          \ \   \   _\.-¨   \\::::::::::::::::::::::::::::-_´ .`/      /         Y88b. .d88P 888     888 Y88..88P 888  888
-                                     \\ \          \ \  \.-¨\        \\:::::::::::::::::::::;(¨´-¨´ ´-´/      /           "Y88888P"  888     888  "Y88P"  888  888
-                                      \\ \         \ \ \¨    \      _-\::::::::::::::::::::{ ´        /      /
+                                   \ \ \          \ \   \   _-\-¨   \\::::::::::::::::::::::::::::-_´ .`/      /         Y88b. .d88P 888     888 Y88..88P 888  888
+                                     \\ \          \ \  _\-¨\        \\:::::::::::::::::::::;(¨´-¨´ ´-´/      /           "Y88888P"  888     888  "Y88P"  888  888
+                                      \\ \         \ \ \     \      _-\::::::::::::::::::::{ ´        /      /
                                        \ \          \ \ \     \_.-¨¨  \\:;;:::::::::::::::::;        /     /                    d8888
                                         \ \         \ \  \     \ \     \\  ;;;:;;;::;;;;::;;<       /     /                    d88888
                                         \ \          \ \  \  _.-¨ \    \\     ¨  ´;´ ¨ ´;¨ ´¨     /      /                    d88P888
@@ -36,8 +35,8 @@
                                           \ \         \ \ \         \.-¨_\\                     /     /                     d88P  888 d8P  Y8b 888P"  d88""88b 88K      888 "88b     "88b d88P"   d8P  Y8b
                                           \ \          \ \ \    _.-¨_.-¨,                      /     /                     d88P   888 88888888 888    888  888 "Y8888b. 888  888 .d888888 888     88888888
                                            \ \___       \ \ \.-¨_.-´     ; ,    .   . .. . ,. /     /                     d8888888888 Y8b.     888    Y88..88P      X88 888 d88P 888  888 Y88b.   Y8b.
-                                            \____¨¨¨¨¨¨¨¨   _.-¨,. .  ..::: . .   `          /     /                     d88P     888  "Y8888  888     "Y88P"   88888P' 88888P"  "Y888888  "Y8888P "Y8888
-                                                 ¨\¨¨¨¨¨\¨¨   .:: :.:.;.         ,  .      /     /                                                                      888
+                                            \____¨¨¨¨¨¨¨¨  \_.-¨,. .  ..::: . .   `          /     /                     d88P     888  "Y8888  888     "Y88P"   88888P' 88888P"  "Y888888  "Y8888P "Y8888
+                                                 ¨\¨¨¨¨¨\¨¨´  .:: :.:.;.         ,  .      /     /                                                                      888
      Orion Aerospace Design                        \     \   ¨:.:..:.;´, ´  ,     ::   ,:,/     /                        8888888b.                    d8b               888
      Project: SmashBoy                              \     \ ´     ´`: ;.:.:..;   ;:.   ´ /     /                         888  "Y88b                   Y8P               888
                                                      \     \ .   ;,¨;..;..:::´   ¨¨´    /     /                          888    888
@@ -869,10 +868,10 @@ feedback FbImg, FbCtrl, FbDpl, FbMmry, FbSensor, FbRadio;
 #define PICTURE		0x0F
 #define SEND		0xC3
 #define CONTINUE	0xA5
-
+#define SHUTDOWN	0xF4
 
 uint8_t *pBufferSPI = NULL;
-
+_Bool imgFinishFlag = 0;
 
 // ---------------------------------------------------------------------------------------------
 // ---------------------------------------------------------------------------------------------
@@ -1068,7 +1067,7 @@ void vTaskRadio( void * pvParameters )
 							resto = size % 253;
 							if(resto)														// Normalmente o ultimo pacote não tem tamanho multiplo de 253, então vai sobrar um 'resto' de bytes para ser transmitidos
 							{
-								ultimo = message_repeat[0] & 0x1F;							// o ultimo pacote vai ter um tratamento especial pra não ser transmitido lixo de memória, o tamanho dele vai ser menor que 253 (255) bytes
+								ultimo = message_repeat[0] & 0x1F;							// o ultimo(indice) pacote vai ter um tratamento especial pra não ser transmitido lixo de memória, o tamanho dele vai ser menor que 253 (255) bytes
 								message_repeat[0]++;										// soma 1 pra poder transmitir os bytes restantes
 							}
 							else
@@ -1076,10 +1075,16 @@ void vTaskRadio( void * pvParameters )
 
 							ID = *(pBufferSPI + 0) << 8 | *(pBufferSPI + 1);				// ID decrescente que informa quantos pacotes de 4048 ainda faltam
 							FbImg.parameter[0] = 'I'; FbImg.parameter[1] = 'D'; FbImg.parameter[2] = 0x30 | (0xF & ID);
+
+							if(ID == 0)
+								imgFinishFlag = 1;
+							else
+								imgFinishFlag = 0;
 						}
 
 						*(pBufferSPI + 4058) = 0x50;	// Codigo de identificação			// HEADER		Reaproveita o espaço já alocado pra não precisar alocar mais um pedaço
 //					- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 						for(int i = 0; i < (message_repeat[0] & 0x1F); i++)
 						{
 							if(i%2 == 0)													// HEADER		// Logica que separa 1 byte em 2 numeros
@@ -1104,7 +1109,7 @@ void vTaskRadio( void * pvParameters )
 								SX_WriteBuffer(0x02, (pBufferSPI + 4 + ( ((*(pBufferSPI + 4059)) & 0x0F) * 253 )), 253);	// PAYLOAD
 							SX_TX(0);																						// Inicia transmissão
 
-							if( (*(pBufferSPI + 4059) & 0x0F) != ((message_repeat[0] & 0x1F)-1) )	// Se não for o ultimo pacote a ser transmitido,
+							if( ((message_repeat[0] & 0x1F)-1) != i )								// Se não for o ultimo pacote a ser transmitido
 								xTaskNotifyWait(0x00, 0xFFFFFFFF, &radioFeedback, 5000);			//   aguarda pela interrupcao TxDone aqui mesmo, se não, a interrupção vai ser tradada normalmente no estado de suspensão
 						}
 					}
@@ -1153,6 +1158,7 @@ void vTaskRadio( void * pvParameters )
 						case 0x46:		// Procedimento para enviar imagem (metadado)
 							FbRadio.parameter[0] = 'I';	FbRadio.parameter[1] = 'M';	FbRadio.parameter[2] = 'G';
 							flag_metadada = 1;
+							imgFinishFlag = 0;
 							xTaskNotify(xHandleImage, SUSPEND, eSetValueWithOverwrite);
 							vTaskResume(xHandleImage);
 							state = suspend;
@@ -1205,6 +1211,13 @@ void vTaskRadio( void * pvParameters )
 							message_repeat[8] = 0xEF;
 							xTaskNotify(xHandleImage, CONTINUE, eSetValueWithOverwrite);
 							vTaskResume(xHandleImage);
+							state = suspend;
+							break;
+
+						case 0xF4:
+							FbRadio.parameter[0] = 'S';	FbRadio.parameter[1] = 'T';	FbRadio.parameter[2] = 'D';
+							xTaskNotify(xHandleImage, SHUTDOWN, eSetValueWithOverwrite);
+							vTaskResume(xHandleImage);
 							break;
 
 						default:		// Recebeu um comando que não está configurado
@@ -1232,8 +1245,8 @@ void vTaskImage( void * pvParameters )
 	FbImg.parameter[0] = ' ';	FbImg.parameter[1] = ' ';	FbImg.parameter[2] = ' ';
 
 	// Raspberry Pi State Machine
-	enum {configRPi, finishRPi, suspendRPi, pictureRPi, sendRPi, continueRPi};
-	static uint8_t msgRPi[6] = {CONFIG, FINISH, SUSPEND, PICTURE, SEND, CONTINUE};
+	enum {configRPi, finishRPi, suspendRPi, pictureRPi, sendRPi, continueRPi, shutdownRPi};
+	static uint8_t msgRPi[7] = {CONFIG, FINISH, SUSPEND, PICTURE, SEND, CONTINUE, SHUTDOWN};
 	uint8_t feedbackUART = 0;
 
 	// State Machine
@@ -1303,8 +1316,13 @@ void vTaskImage( void * pvParameters )
 						break;
 
 					case CONTINUE:
-						status_SPI_RX = HAL_SPI_Receive_IT(&hspi3, pBufferSPI, 4060);				// Prepara SPI para receber
+						if(!imgFinishFlag) {
+							status_SPI_RX = HAL_SPI_Receive_IT(&hspi3, pBufferSPI, 4060); }				// Prepara SPI para receber
 						status_UART_TX = HAL_UART_Transmit_IT(&huart1, &msgRPi[continueRPi], 1);	// Solicita a transferencia
+						break;
+
+					case SHUTDOWN:
+						status_UART_TX = HAL_UART_Transmit_IT(&huart1, &msgRPi[shutdownRPi], 1);
 						break;
 				}
 
@@ -1318,7 +1336,7 @@ void vTaskImage( void * pvParameters )
 					state = unexpected;
 					break;					 }
 
-				if(status_SPI_RX != HAL_OK)	{
+				if((status_SPI_RX != HAL_OK)) {
 					flag_SPI_Error[S_IT] = _ERR;			// SPI RX ERROR
 					state = unexpected;
 					break;					}
@@ -1351,7 +1369,15 @@ void vTaskImage( void * pvParameters )
 
 					case CONTINUE:
 					case SEND:
-						state = spi;
+						if(!imgFinishFlag) {
+							state = spi;   }
+						else {
+							FbImg.parameter[0] = 'e'; FbImg.parameter[1] = 'n'; FbImg.parameter[2] = 'd';
+							state = suspend; }
+						break;
+
+					case SHUTDOWN:
+						state = suspend;
 						break;
 				}
 				break;
@@ -1532,17 +1558,16 @@ void vTaskDeploy( void * pvParameters )
 		if(status_deploy != FULLY_DEPLOYED)
 		{
 			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);							// Liga elemento de aquecimento
-			status_deploy = DEPLOYING;
-			FbDpl.parameter[0] = '1';
+			status_deploy = DEPLOYING;															// Atualiza status
+			FbDpl.parameter[0] = '1';															// Atualiza parametro de feedback
 			xTaskNotifyWait(0x00, 0xFFFFFFFF, (uint32_t *) &status_deploy, tempo_ligado);		// Mantem ligado por algum tempo
+			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);							// Desliga elemento de aquecimento por segurança
 
 			if(status_deploy == FULLY_DEPLOYED) {												// Atualizado via interrupção externa
 				FbDpl.parameter[0] = '3'; }														// Sucesso, aberto
 			else {
 				status_deploy = NOT_DEPLOYED;													// Falhou
 				FbDpl.parameter[0] = '2'; }
-
-			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);							// Desliga elemento de aquecimento por segurança
 		}
 //		else
 //			vTaskDelete(xHandleDeploy);				// Deleta a task
