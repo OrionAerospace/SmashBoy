@@ -7,7 +7,7 @@
  
 LAYERS SMASHBOY
 
-(9) --> Deploy
+(9) --> 
 
 (8) --> Controle
 
@@ -17,10 +17,10 @@ LAYERS SMASHBOY
 
 (5) -->
 
-(4) --> Bateria
+(4) --> Bateria  (ok)
 
-(3) --> Controlador bateria
+(3) --> Controlador bateria  (ok)
 
-(2) --> Transceiver
+(2) --> Transceiver  (ok)
 
-(1) --> Câmera + BC
+(1) --> Câmera + BC  (ok)
