@@ -23,4 +23,4 @@ LAYERS SMASHBOY
 
 (2) --> Transceiver  (ok)
 
-(1) --> Câmera + BC  (ok)
+(1) --> Câmera + OBC & PYLD Ctrl  (ok)
