@@ -1,0 +1,6 @@
+The argument '-tgtconn_server_info_file' passed to rtiostream_tcpip is not valid and will be ignored.
+The argument 'C:\Users\gucos\AppData\Local\Temp\tgtconnpf93ff5e9_e24a_4eee_b9e2_3f384263be0b.info' passed to rtiostream_tcpip is not valid and will be ignored.
+The argument '-tgtconn_port' passed to rtiostream_tcpip is not valid and will be ignored.
+The argument '0' passed to rtiostream_tcpip is not valid and will be ignored.
+Warning: Solver is encountering difficulty in simulating model 'Simulacao_CubeSat_2U' at time 9.9999999999999995e-08 . It will continue to simulate with warnings. Check the model for errors.
+Warning: Solver was unable to reduce the step size without violating minimum step size of 1e-07 for 1 consecutive times at time 1e-07.  Solver will continue simulation with the step size restricted to 1e-07 and using an effective relative error tolerance of 60.6463, which is greater than the specified relative error tolerance of 1e-05. This usually may be caused by the high stiffness of the system. Please check the system or increase the solver <a href="matlab:configset.internal.open('_E_S_O_','MaxConsecutiveMinStep');">Number of consecutive min steps</a> violation parameter.
