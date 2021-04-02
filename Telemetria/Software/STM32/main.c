@@ -1,59 +1,3 @@
-/*
-                       _---------------------------------------------------------------------------------------------------_
-                  .--¨¨              _____    __  __                 _____    _    _    ____      ____   __     __          ¨¨--_
-               ,-´                  / ____|  |  \/  |      /\       / ____|  | |  | |  |  _ \    / __ \  \ \   / /                ´-_
-             :´                    | (___    | \  / |     /  \     | (___    | |__| |  | |_) |  | |  | |  \ \_/ /                    ´.
-            /                       \___ \   | |\/| |    / /\ \     \___ \   |  __  |  |  _ <   | |  | |   \   /                       \
-           |                        ____) |  | |  | |   / ____ \    ____) |  | |  | |  | |_) |  | |__| |    | |                        |
-           |                       |_____/   |_|  |_|  /_/    \_\  \_____/   |_|  |_|  |____/    \____/     |_|                        |
-            \           __-----------------------------------------------------------------------------------------------__           /
-             \        /´                                                                                                   ´\        /
-              \      |                                                                            *                          |      /
-               \      \                                                                                                      /     /
-                \      \                                            ____.-----¨¨¨¨       *                                  /     /
-                  \      \                   _....------:-¨\´¨¨¨¨¨¨¨                                   *                  /     /
-                   \      \             _.-¨¨       _.-¨_:-¨\\                                                           /     /
-                    \      \       _.-¨¨        _-¨_.-\¨--___\\                                                         /     /
-                     \     _\-.--¨¨----------¨¨_.-¨    \     \\¨¨¨----____                        , *                  /     /
-                   __--\¨¨¨  \\ \¨¨:¨¨¨¨¨¨¨\ \ \        \     \\          ¨¨¨¨---..._           *                    /     /
-                        \     \\-\´         \ \ \      _.\    _\                     ¨¨¨¨¨                          /     /
-                         \  _-´\\ \          \ \ \_.-¨¨\ _\-¨¨ \\                                                  /     /
-                        _.\¨    \ \          \ \ \     \¨       \\ . .                                     *      /     /
-                    _.-¨    \    \ \          \ \ \     \       \\ ´.´.´.¨.`.- .               *                /      /  .d88888b.          d8b
-                 _-¨         \    \ \          \ \ \     \  _.-\¨\\¨¨::- __`.´ . ¨ ` .                         /      /  d88P" "Y88b         Y8P
-              _-´             \   \ \          \ \ \   _.-\¨    \ \::::::::::.-´_´.´. . . .                  /      /    888     888
-           _-´                  \  \ \          \ \ \:¨    \     \ \:::::::::::::::´:-._´ .´ ´ .            /      /     888     888 888d888 888  .d88b.  88888b.
-       _,-´                      \  \ \          \ \  \     \     \ \:::::::::::::::::::´.-_´ . . .        /      /      888     888 888P"   888 d88""88b 888 "88b
-                                  \ \ \          \ \   \     \   _\.\::::::::::::::::::::::::¨._ . ` .   /      /        888     888 888     888 888  888 888  888
-                                   \ \ \          \ \   \   _-\-¨   \\::::::::::::::::::::::::::::-_´ .`/      /         Y88b. .d88P 888     888 Y88..88P 888  888
-                                     \\ \          \ \  _\-¨\        \\:::::::::::::::::::::;(¨´-¨´ ´-´/      /           "Y88888P"  888     888  "Y88P"  888  888
-                                      \\ \         \ \ \     \      _-\::::::::::::::::::::{ ´        /      /
-                                       \ \          \ \ \     \_.-¨¨  \\:;;:::::::::::::::::;        /     /                    d8888
-                                        \ \         \ \  \     \ \     \\  ;;;:;;;::;;;;::;;<       /     /                    d88888
-                                        \ \          \ \  \  _.-¨ \    \\     ¨  ´;´ ¨ ´;¨ ´¨     /      /                    d88P888
-                                         \ \          \ \ _\¨      \    \\                       /      /                    d88P 888  .d88b.  888d888 .d88b.  .d8888b  88888b.   8888b.   .d8888b .d88b.
-                                          \ \         \ \ \         \.-¨_\\                     /     /                     d88P  888 d8P  Y8b 888P"  d88""88b 88K      888 "88b     "88b d88P"   d8P  Y8b
-                                          \ \          \ \ \    _.-¨_.-¨,                      /     /                     d88P   888 88888888 888    888  888 "Y8888b. 888  888 .d888888 888     88888888
-                                           \ \___       \ \ \.-¨_.-´     ; ,    .   . .. . ,. /     /                     d8888888888 Y8b.     888    Y88..88P      X88 888 d88P 888  888 Y88b.   Y8b.
-                                            \____¨¨¨¨¨¨¨¨  \_.-¨,. .  ..::: . .   `          /     /                     d88P     888  "Y8888  888     "Y88P"   88888P' 88888P"  "Y888888  "Y8888P "Y8888
-                                                 ¨\¨¨¨¨¨\¨¨´  .:: :.:.;.         ,  .      /     /                                                                      888
-     Orion Aerospace Design                        \     \   ¨:.:..:.;´, ´  ,     ::   ,:,/     /                        8888888b.                    d8b               888
-     Project: SmashBoy                              \     \ ´     ´`: ;.:.:..;   ;:.   ´ /     /                         888  "Y88b                   Y8P               888
-                                                     \     \ .   ;,¨;..;..:::´   ¨¨´    /     /                          888    888
-     Henrique Terzi Lucchetta                          \     \    >:.:.:., `,    `  ; /     /                            888    888  .d88b.  .d8888b  888  .d88b.  88888b.
-     henriquetlucchetta@gmail.com                       \     \  ¨,´:.:.:.;  ;  ,;:::/     /                             888    888 d8P  Y8b 88K      888 d88P"88b 888 "88b
-                                                         \     \:, ;.:.:.:.`...;.;.:/     /                              888    888 88888888 "Y8888b. 888 888  888 888  888
-     11/2020                                              \     \, ,:.:.;..; :. :.:/     /                               888  .d88P Y8b.          X88 888 Y88b 888 888  888
-                                                           \      \.:.:.:.:.:.:. /      /                                8888888P"   "Y8888   88888P' 888  "Y88888 888  888
-                                                             \     \`:.:.:.:.:.:/     /                                                                        888
-                                                              \      \:.;.;.:./      /                                                                    Y8b d88P
-                                                               \      `-_ _ -´      /                                                                      "Y88P"
-                                                                 \                /
-                                                                  `- _         _-´
-                                                                       `-----¨
-
-*/
-
 /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
@@ -103,6 +47,8 @@
 CRC_HandleTypeDef hcrc;
 
 I2C_HandleTypeDef hi2c1;
+DMA_HandleTypeDef hdma_i2c1_rx;
+DMA_HandleTypeDef hdma_i2c1_tx;
 
 SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi3;
@@ -125,6 +71,7 @@ TaskHandle_t xHandleSensor = NULL;
 
 SemaphoreHandle_t xSemBinUART = NULL;
 SemaphoreHandle_t xSemBinSPI = NULL;
+SemaphoreHandle_t xSemBinI2C = NULL;
 SemaphoreHandle_t xSemBinSendImage = NULL;
 
 TimerHandle_t xTimerRTOS;
@@ -134,6 +81,7 @@ TimerHandle_t xTimerRTOS;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_CRC_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_SPI3_Init(void);
@@ -186,12 +134,13 @@ int main(void)
 
   /* USER CODE BEGIN SysInit */
 
-  vTraceEnable(TRC_START);
+//  vTraceEnable(TRC_START);
 
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_CRC_Init();
   MX_SPI1_Init();
   MX_SPI3_Init();
@@ -245,7 +194,7 @@ int main(void)
     xReturned = xTaskCreate(
                     vTaskControl,       	/* Function that implements the task. */
                     "Control",    				/* Text name for the task. */
-                    64,      				/* Stack size in words, not bytes. */
+                    120,      				/* Stack size in words, not bytes. */
                     ( void * ) 1,    			/* Parameter passed into the task. */
   				  ( ( UBaseType_t ) 3U ),	/* Priority at which the task is created. */
                     &xHandleControl );    /* Used to pass out the created task's handle. */
@@ -332,7 +281,8 @@ int main(void)
 
   /* Create the thread(s) */
   /* definition and creation of standbyTask */
-
+  osThreadDef(standbyTask, StandbyTask, osPriorityIdle, 0, 64);
+  standbyTaskHandle = osThreadCreate(osThread(standbyTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
 
@@ -421,10 +371,10 @@ void SystemClock_Config(void)
   PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
   PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
   PeriphClkInitStruct.PLL3.PLL3M = 25;
-  PeriphClkInitStruct.PLL3.PLL3N = 192;
-  PeriphClkInitStruct.PLL3.PLL3P = 2;
-  PeriphClkInitStruct.PLL3.PLL3Q = 4;
-  PeriphClkInitStruct.PLL3.PLL3R = 2;
+  PeriphClkInitStruct.PLL3.PLL3N = 216;
+  PeriphClkInitStruct.PLL3.PLL3P = 3;
+  PeriphClkInitStruct.PLL3.PLL3Q = 3;
+  PeriphClkInitStruct.PLL3.PLL3R = 3;
   PeriphClkInitStruct.PLL3.PLL3RGE = RCC_PLL3VCIRANGE_0;
   PeriphClkInitStruct.PLL3.PLL3VCOSEL = RCC_PLL3VCOWIDE;
   PeriphClkInitStruct.PLL3.PLL3FRACN = 0;
@@ -487,7 +437,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x10B0DCFB;
+  hi2c1.Init.Timing = 0x10808DC4;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -703,6 +653,25 @@ static void MX_USART1_UART_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream0_IRQn);
+  /* DMA1_Stream1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -727,6 +696,9 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(SPI1_NSS_GPIO_Port, SPI1_NSS_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(BNO_RESET_GPIO_Port, BNO_RESET_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : NRST_Pin RXEN_Pin TXEN_Pin */
   GPIO_InitStruct.Pin = NRST_Pin|RXEN_Pin|TXEN_Pin;
@@ -779,11 +751,18 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(DIO2_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : BNO_RESET_Pin */
+  GPIO_InitStruct.Pin = BNO_RESET_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(BNO_RESET_GPIO_Port, &GPIO_InitStruct);
+
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI0_IRQn, 6, 0);
   HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 
   HAL_NVIC_SetPriority(EXTI9_5_IRQn, 7, 0);
@@ -855,6 +834,9 @@ typedef struct
 
 feedback FbImg, FbCtrl, FbDpl, FbMmry, FbSensor, FbRadio;
 
+uint8_t ADCS_Buffer_Transmit[25];
+uint8_t ADCS_Buffer_Receive[25];
+
 // Status Task Deploy
 #define FOLDED  		0x0
 #define DEPLOYING  		0x1
@@ -872,6 +854,8 @@ feedback FbImg, FbCtrl, FbDpl, FbMmry, FbSensor, FbRadio;
 
 uint8_t *pBufferSPI = NULL;
 _Bool imgFinishFlag = 0;
+
+#define ADDR_BNO	0x29
 
 // ---------------------------------------------------------------------------------------------
 // ---------------------------------------------------------------------------------------------
@@ -923,7 +907,7 @@ void vTaskRadio( void * pvParameters )
 	FbRadio.parameter[0] = ' ';	FbRadio.parameter[1] = ' ';	FbRadio.parameter[2] = ' ';
 
 	/* Array de ponteiros que armazena todos os endereços das variaveis de feedbacks */
-	feedback *pArrayFeedback[] = {&FbDpl, &FbImg, &FbRadio, &FbCtrl, &FbMmry, &FbSensor};
+	feedback *pArrayFeedback[] = {&FbDpl, &FbImg, &FbRadio, &FbCtrl, &FbSensor, &FbMmry};
 
 	// State Machine
 	enum {suspend, receive, transmit, screening};
@@ -1024,7 +1008,7 @@ void vTaskRadio( void * pvParameters )
 				else
 				{	// Timeout, o radio não gerou interrupção, transmite telemetria
 					HAL_GPIO_WritePin(RXEN_GPIO_Port, RXEN_Pin, GPIO_PIN_RESET);			// Desativa o amplificador de RF (RX) para poupar energia
-					state = transmit;
+					state = transmit;														// ########>>>>>>>>>>>>>>> DESCOMENTAR PARA VOLTAR A TRANSMITIR <<<<<<<<<<<<<<<<<<<##############
 
 					uxHighWaterMarkRadio = uxTaskGetStackHighWaterMark( NULL );				// Remover isso daqui futuramente, está aqui para analise ##################
 				}
@@ -1120,7 +1104,7 @@ void vTaskRadio( void * pvParameters )
 					if(++contador >= 1000)													// Contador de envios
 						contador = 0;
 
-					for(int i = 0, j = 0; j < 3; i = i + 6, j++)							// Adiciona todos os feedbacks das outras Tasks na mensagem de telemetria
+					for(int i = 0, j = 0; j < 5; i = i + 6, j++)							// Adiciona todos os feedbacks das outras Tasks na mensagem de telemetria
 					{																		// j < 'x' , onde 'x' é a quantidade de feedbacks para serem transmitido
 						payload[5+i] = pArrayFeedback[j]->ID_Task[0];						// A ordem de envio depende da ordem em que estão declarados no Array
 						payload[6+i] = pArrayFeedback[j]->ID_Task[1];
@@ -1220,6 +1204,13 @@ void vTaskRadio( void * pvParameters )
 							vTaskResume(xHandleImage);
 							break;
 
+						case 0xC0:
+							FbRadio.parameter[0] = 'C';	FbRadio.parameter[1] = 'T';	FbRadio.parameter[2] = 'L';
+							ADCS_Buffer_Transmit[12] = *(pRadioBuffer+2);				// ##############>>> FAZER DO JEITO CERTO DEPOIS, COM QUEUE
+							ADCS_Buffer_Transmit[13] = *(pRadioBuffer+3);				// ##############>>> FAZER DO JEITO CERTO DEPOIS, COM QUEUE
+							ADCS_Buffer_Transmit[14] = *(pRadioBuffer+4);				// ##############>>> FAZER DO JEITO CERTO DEPOIS, COM QUEUE
+							break;
+
 						default:		// Recebeu um comando que não está configurado
 							FbRadio.parameter[0] = 'S';	FbRadio.parameter[1] = 'H';	FbRadio.parameter[2] = 'T';
 							break;
@@ -1275,6 +1266,7 @@ void vTaskImage( void * pvParameters )
 
 	// Raspberry Image Buffer
 	pBufferSPI = pvPortMalloc(4060);
+//	pBufferSPI = pvPortMalloc(3060);
 
 	// Memory check
 	if( (xSemBinUART == NULL) || (xSemBinSPI == NULL) || (pBufferSPI == NULL) || (xSemBinSendImage == NULL) )
@@ -1533,11 +1525,135 @@ void vTaskControl( void * pvParameters )
 	FbCtrl.ID_Task[0] = 'C';	FbCtrl.ID_Task[1] = 'T';
 	FbCtrl.parameter[0] = ' ';	FbCtrl.parameter[1] = ' ';	FbCtrl.parameter[2] = ' ';
 
-	vTaskSuspend(xHandleControl);
+//	vTaskSuspend(xHandleControl);
+
+	int16_t rpm[4] = {0,0,0,0};
+
+	uint8_t control = 0, Head_obj[2];
+
+
+	uint8_t bnoRead[56], bnoWrite, Calib[4], temperature;
+
+	int16_t accel[3], gyro[3], mag[3], tmp, euler[3], reference[3];
+	float Heading, Roll, Pitch, Quaternion[4];
+
+	uint8_t BNO1_ready = 0;
+
+	reference[0] = 0; reference[1] = 0; reference[2] = 0;
+
+
+
+	HAL_GPIO_WritePin(BNO_RESET_GPIO_Port, BNO_RESET_Pin, GPIO_PIN_RESET);			// Reinicia BNO para eliminar qualquer estado indesejado
+	osDelay(200);
+	HAL_GPIO_WritePin(BNO_RESET_GPIO_Port, BNO_RESET_Pin, GPIO_PIN_SET);
+	osDelay(800);
+
+
+	bnoWrite = 0x00;
+	HAL_I2C_Mem_Write(&hi2c1, ADDR_BNO << 1, 0x07, 1, &bnoWrite, 1, HAL_MAX_DELAY);		// Page 0
+	osDelay(25);
+
+	bnoWrite = 0x80;
+	HAL_I2C_Mem_Write(&hi2c1, ADDR_BNO << 1, 0x3F, 1, &bnoWrite, 1, HAL_MAX_DELAY);		// clock sel
+
+	bnoWrite = 0x0C;
+	HAL_I2C_Mem_Write(&hi2c1, ADDR_BNO << 1, 0x3D, 1, &bnoWrite, 1, HAL_MAX_DELAY);		// Config Mode
+
+	do {
+		osDelay(25);
+		HAL_I2C_Mem_Read(&hi2c1, ADDR_BNO << 1, 0x3D, 1, &bnoRead[0], 1, HAL_MAX_DELAY);
+	} while(0x0C != (bnoRead[0] & 0x0F) );
+
+
+	HAL_I2C_Mem_Read_DMA(&hi2c1, ADDR_BNO << 1, 0x08, 1, bnoRead, 56);		// Le o IMU
 
 	for(;;)
 	{
-		osDelay(1);
+
+		if(xTaskNotifyWait(0x00, 0xFFFFFFFF, (uint32_t *) &BNO1_ready, 1000) == pdTRUE) {
+			if(BNO1_ready == 0x01) {
+				accel[0] = (bnoRead[1] << 8) | bnoRead[0];
+				accel[1] = (bnoRead[3] << 8) | bnoRead[2];
+				accel[2] = (bnoRead[5] << 8) | bnoRead[4];
+
+				mag[0] = (bnoRead[7] << 8) | bnoRead[6];
+				mag[1] = (bnoRead[9] << 8) | bnoRead[8];
+				mag[2] = (bnoRead[11] << 8) | bnoRead[10];
+
+				gyro[0] = (bnoRead[13] << 8) | bnoRead[12];
+				gyro[1] = (bnoRead[15] << 8) | bnoRead[14];
+				gyro[2] = (bnoRead[17] << 8) | bnoRead[16];
+
+				// -------------------------------------------------
+
+				euler[0] = ((bnoRead[19] << 8) | bnoRead[18]);
+				tmp = euler[0] + reference[0];
+				if(tmp < 0)
+					tmp = tmp + 5759;
+				Heading = ((float)tmp) / 16;
+				FbSensor.parameter[0] =  0x30 + (uint8_t)(Heading/100);
+				FbSensor.parameter[1] =  0x30 + (uint8_t)(Heading/10) - (FbSensor.parameter[0]&0xF)*10;
+				FbSensor.parameter[2] =  0x30 + (uint8_t)(Heading - ((FbSensor.parameter[0]&0xF)*100) - ((FbSensor.parameter[1]&0xF)*10));
+
+
+				euler[1] = (bnoRead[21] << 8) | bnoRead[20];
+				tmp = euler[1] + reference[1];
+				if(tmp > 1439)
+					tmp = 1439 - (tmp - 1439);
+				else if (tmp < -1439)
+					tmp = -1439 - (tmp + 1439);
+				Roll = ((float)tmp) / 16;
+
+
+				euler[2] = (bnoRead[23] << 8) | bnoRead[22];
+				tmp = euler[2] + reference[2];
+				if(tmp > 2879)
+					tmp = tmp - 5758;
+				else if(tmp < -2879)
+					tmp = 5758 + tmp;
+				Pitch = ((float)tmp) / 16;
+
+
+				Calib[0] = (bnoRead[45] & 0xC0) >> 6;
+				Calib[1] = (bnoRead[45] & 0x30) >> 4;
+				Calib[2] = (bnoRead[45] & 0x0C) >> 2;
+				Calib[3] = (bnoRead[45] & 0x03);
+
+
+				ADCS_Buffer_Transmit[0] = (rpm[1] & 0xFF00) >> 8;	// RPM Motor 1
+				ADCS_Buffer_Transmit[1] = rpm[1] & 0xFF;
+				ADCS_Buffer_Transmit[2] = (rpm[2] & 0xFF00) >> 8;	// RPM Motor 2
+				ADCS_Buffer_Transmit[3] = rpm[2] & 0xFF;
+				ADCS_Buffer_Transmit[4] = (rpm[3] & 0xFF00) >> 8;	// RPM Motor 3
+				ADCS_Buffer_Transmit[5] = rpm[3] & 0xFF;
+
+				ADCS_Buffer_Transmit[6] = bnoRead[19];				// Heading
+				ADCS_Buffer_Transmit[7] = bnoRead[18];
+				ADCS_Buffer_Transmit[8] = bnoRead[21];				// Roll
+				ADCS_Buffer_Transmit[9] = bnoRead[20];
+				ADCS_Buffer_Transmit[10] = bnoRead[23];				// Pitch
+				ADCS_Buffer_Transmit[11] = bnoRead[22];
+
+//				ADCS_Buffer_Transmit[12] = control;
+//				ADCS_Buffer_Transmit[13] = Head_obj[0];				// Target Heading
+//				ADCS_Buffer_Transmit[14] = Head_obj[1];
+
+				ADCS_Buffer_Transmit[23] = 0xAA;
+				ADCS_Buffer_Transmit[24] = 0xFF;
+
+				osDelay(200);																// Aguarda uma certa quantidade de tempo
+				HAL_I2C_Mem_Read_DMA(&hi2c1, ADDR_BNO << 1, 0x08, 1, bnoRead, 56);			// Recebe uma nova leitura do IMU
+			}
+
+		}
+		else
+		{
+			FbSensor.parameter[0] = 'R';	FbSensor.parameter[1] = 'I';	FbSensor.parameter[2] = 'P';
+			// ############################# BNO NÃO RESPONDE
+		}
+
+
+
 	}
 }
 
@@ -1597,13 +1713,50 @@ void vTaskSensor( void * pvParameters )
 
 //	vTaskSuspend(xHandleSensor);
 
+
 	for(;;)
 	{
-		osDelay(100);
+		osDelay(10);
 	}
 }
 
 
+
+void HAL_I2C_MemRxCpltCallback (I2C_HandleTypeDef * hi2c)
+{
+
+	HAL_I2C_Master_Transmit_DMA(&hi2c1, 0x15 << 1, ADCS_Buffer_Transmit, 25);
+
+	/* Usado em caso de necessidade de mudança de contexto entre as tasks */
+	static BaseType_t xHigherPriorityTaskWoken;
+	xHigherPriorityTaskWoken = pdFALSE;
+
+	xTaskNotifyFromISR(xHandleControl, 0x01, eSetValueWithOverwrite, &xHigherPriorityTaskWoken);		// Informa Task Sensor que a leitura via DMA finalizou
+
+
+	/* Macro que verifica necessidade de mudança de contexto entre as tasks */
+	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+}
+
+void HAL_I2C_MasterTxCpltCallback (I2C_HandleTypeDef * hi2c)
+{
+	HAL_I2C_Master_Receive_DMA(&hi2c1, 0x15 << 1, ADCS_Buffer_Receive, 25);
+}
+
+void HAL_I2C_MasterRxCpltCallback (I2C_HandleTypeDef * hi2c)
+{
+
+}
+
+void HAL_I2C_ErrorCallback (I2C_HandleTypeDef * hi2c)
+{
+
+}
+
+void HAL_I2C_AbortCpltCallback (I2C_HandleTypeDef * hi2c)
+{
+
+}
 
 /* USER CODE END 4 */
 
@@ -1629,7 +1782,7 @@ void StandbyTask(void const * argument)
   /* USER CODE END 5 */
 }
 
-/**
+ /**
   * @brief  Period elapsed callback in non blocking mode
   * @note   This function is called  when TIM6 interrupt took place, inside
   * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
